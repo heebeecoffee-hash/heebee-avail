@@ -644,14 +644,19 @@
     window.dbRemove = remove;
     window.dbOnValue = onValue;
     
-    // Initialize default PINs if not set
+    // Initialize default PINs for each branch if not set
     get(ref(db, 'config')).then(snap => {
       if (!snap.exists()) {
-        set(ref(db, 'config'), {
-          kitchenPin: '1234',
-          posPin: '5678',
-          adminPin: '9999'
+        // Create default PINs for each branch
+        const defaultConfig = {};
+        Object.keys(branches).forEach(branchId => {
+          defaultConfig[branchId] = {
+            kitchenPin: '1234',
+            posPin: '5678',
+            adminPin: '9999'
+          };
         });
+        set(ref(db, 'config'), defaultConfig);
       }
     });
     
@@ -793,8 +798,21 @@
     
     async function checkPin() {
       const pin = ['p1','p2','p3','p4'].map(id => document.getElementById(id).value).join('');
-      const configSnap = await window.dbGet(window.dbRef(window.db, 'config'));
+      
+      // Load config for the selected branch
+      const configSnap = await window.dbGet(window.dbRef(window.db, `config/${currentBranch}`));
       const config = configSnap.val();
+      
+      if (!config) {
+        document.getElementById('pinError').textContent = 'Branch config not found';
+        document.getElementById('pinError').style.display = 'block';
+        setTimeout(() => {
+          document.getElementById('pinError').style.display = 'none';
+          clearPin();
+          document.getElementById('p1').focus();
+        }, 1500);
+        return;
+      }
       
       let valid = false;
       if (selectedRole === 'kitchen' && pin === String(config.kitchenPin)) valid = true;
