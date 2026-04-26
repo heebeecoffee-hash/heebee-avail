@@ -1208,42 +1208,49 @@
     }
     
     async function checkDuplicates(scope) {
+      console.log('=== Starting Duplicate Check ===');
+      console.log('Scope:', scope);
+      console.log('Pending import data count:', pendingImportData?.length);
+      
       try {
-        // Get target branch(es) to check against
-        let branchesToCheck = [];
+        // Get target branch to check against (just ONE branch for comparison)
+        let targetBranch;
         if (scope === 'current') {
-          const targetBranch = currentBranch === 'all_branches' 
+          targetBranch = currentBranch === 'all_branches' 
             ? document.getElementById('adminBranchSelect').value 
             : currentBranch;
-          branchesToCheck = [targetBranch];
         } else {
-          branchesToCheck = Object.keys(branches);
+          // For "all branches" import, check against first branch as reference
+          targetBranch = Object.keys(branches)[0];
         }
         
-        // Load existing items from target branch(es)
-        let existingItems = [];
-        for (const branchId of branchesToCheck) {
-          const itemsSnap = await window.dbGet(window.dbRef(window.db, `branches/${branchId}/items`));
-          const items = itemsSnap.val() || {};
-          existingItems = existingItems.concat(
-            Object.entries(items).map(([id, item]) => ({
-              id,
-              branchId,
-              name: item.name.toLowerCase().trim(),
-              category: item.category.toLowerCase().trim()
-            }))
-          );
-        }
+        console.log('Checking against branch:', targetBranch);
+        
+        // Load existing items from target branch
+        const itemsSnap = await window.dbGet(window.dbRef(window.db, `branches/${targetBranch}/items`));
+        const items = itemsSnap.val() || {};
+        
+        console.log('Existing items in branch:', Object.keys(items).length);
+        
+        const existingItems = Object.values(items).map(item => ({
+          name: item.name.toLowerCase().trim(),
+          category: item.category.toLowerCase().trim()
+        }));
+        
+        console.log('Normalized existing items:', existingItems.length);
         
         // Check each import item for duplicates
         const duplicates = [];
         const newItems = [];
         
-        pendingImportData.forEach(row => {
+        pendingImportData.forEach((row, index) => {
           const name = (row.Product || row.product || row.Item || row.item || '').trim();
           const cat = (row.Category || row.category || row['Category '] || '').trim();
           
-          if (!name || !cat) return;
+          if (!name || !cat) {
+            console.log(`Row ${index}: skipped (empty name or category)`);
+            return;
+          }
           
           const nameLower = name.toLowerCase();
           const catLower = cat.toLowerCase();
@@ -1254,22 +1261,33 @@
           
           if (isDuplicate) {
             duplicates.push({ name, category: cat });
+            if (duplicates.length <= 3) {
+              console.log(`Duplicate found: ${name} / ${cat}`);
+            }
           } else {
             newItems.push({ name, category: cat });
+            if (newItems.length <= 3) {
+              console.log(`New item found: ${name} / ${cat}`);
+            }
           }
         });
         
         // Store stats
         duplicateStats = { duplicates, newItems };
         
-        console.log('Duplicate check:', { duplicates: duplicates.length, new: newItems.length });
+        console.log('=== Duplicate Check Complete ===');
+        console.log('Duplicates:', duplicates.length);
+        console.log('New items:', newItems.length);
+        console.log('Total valid items:', duplicates.length + newItems.length);
         
         // Show appropriate modal
         if (duplicates.length === 0) {
           // No duplicates - proceed directly
+          console.log('No duplicates found - importing directly');
           executeImport('keep');
         } else {
           // Show duplicate options modal
+          console.log('Showing duplicate modal');
           const total = duplicates.length + newItems.length;
           document.getElementById('duplicateModalText').innerHTML = `
             Found <strong>${duplicates.length} duplicate${duplicates.length !== 1 ? 's' : ''}</strong> 
@@ -1281,8 +1299,19 @@
           document.getElementById('duplicateModal').classList.add('show');
         }
       } catch (error) {
-        console.error('Duplicate check error:', error);
-        alert('Error checking duplicates: ' + error.message);
+        console.error('=== Duplicate Check Error ===');
+        console.error('Error:', error);
+        console.error('Stack:', error.stack);
+        alert('Error checking duplicates: ' + error.message + '. Will import without checking.');
+        // If check fails, just proceed with import
+        duplicateStats = { 
+          duplicates: [], 
+          newItems: pendingImportData.map(row => ({
+            name: (row.Product || row.product || row.Item || row.item || '').trim(),
+            category: (row.Category || row.category || row['Category '] || '').trim()
+          })).filter(item => item.name && item.category)
+        };
+        executeImport('keep');
       }
     }
     
