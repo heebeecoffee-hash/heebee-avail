@@ -560,6 +560,12 @@
             <input type="file" accept=".xls,.xlsx" class="form-input" id="excelFile" onchange="previewExcel()" style="padding:12px;">
           </div>
           <div id="importPreview"></div>
+          <div id="importProgress" style="display:none;margin:20px 0;text-align:center;">
+            <div style="font-family:'Space Mono',monospace;font-size:.75rem;color:var(--text2);margin-bottom:8px;" id="importProgressText">Importing...</div>
+            <div style="background:var(--input-bdr);height:6px;border-radius:3px;overflow:hidden;">
+              <div id="importProgressBar" style="background:linear-gradient(90deg,#b8860b,#f0c040);height:100%;width:0%;transition:width 0.3s ease;"></div>
+            </div>
+          </div>
           <button class="btn" id="importBtn" onclick="importItems()" style="display:none;">Import All Items</button>
         </div>
       </div>
@@ -770,22 +776,6 @@
     document.getElementById('themeIcon').textContent = saved === 'light' ? '☀️' : '🌙';
     
     // Role selection
-    function selectRole(role) {
-      selectedRole = role;
-      document.getElementById('roleGrid').style.display = 'none';
-      document.getElementById('pinWrap').classList.add('show');
-      document.getElementById('pinLabel').textContent = `${role.toUpperCase()} PIN`;
-      document.getElementById('p1').focus();
-    }
-    
-    function backToRoles() {
-      selectedRole = null;
-      document.getElementById('roleGrid').style.display = 'grid';
-      document.getElementById('pinWrap').classList.remove('show');
-      document.getElementById('pinError').style.display = 'none';
-      clearPin();
-    }
-    
     function pinNext(el, pos) {
       if (el.value.length === 1 && pos < 4) {
         document.getElementById('p' + (pos + 1)).focus();
@@ -1135,7 +1125,13 @@
       closeModal('import');
       
       const btn = document.getElementById('importBtn');
-      btn.disabled = true;
+      const progressDiv = document.getElementById('importProgress');
+      const progressText = document.getElementById('importProgressText');
+      const progressBar = document.getElementById('importProgressBar');
+      
+      btn.style.display = 'none';
+      progressDiv.style.display = 'block';
+      progressBar.style.width = '0%';
       
       if (scope === 'current') {
         // Import to current branch only
@@ -1156,9 +1152,13 @@
             unavailableSince: null
           });
           count++;
-          btn.textContent = `Importing to ${currentBranchName}... ${count} of ${total}`;
+          
+          const percent = Math.round((count / total) * 100);
+          progressBar.style.width = percent + '%';
+          progressText.textContent = `Importing to ${currentBranchName}... ${count} of ${total}`;
         }
-        btn.textContent = `✓ Imported ${count} items to ${currentBranchName}`;
+        progressText.textContent = `✓ Imported ${count} items to ${currentBranchName}`;
+        progressBar.style.width = '100%';
       } else {
         // Import to all branches
         let totalCount = 0;
@@ -1186,20 +1186,25 @@
             });
             count++;
             totalCount++;
-            btn.textContent = `Importing to all branches... ${totalCount} of ${totalItems}`;
+            
+            const percent = Math.round((totalCount / totalItems) * 100);
+            progressBar.style.width = percent + '%';
+            progressText.textContent = `Importing to all branches... ${totalCount} of ${totalItems}`;
           }
         }
-        btn.textContent = `✓ Imported ${itemsPerBranch} items to all branches`;
+        progressText.textContent = `✓ Imported ${itemsPerBranch} items to all branches`;
+        progressBar.style.width = '100%';
       }
       
       setTimeout(() => {
-        btn.style.display = 'none';
-        btn.disabled = false;
+        progressDiv.style.display = 'none';
+        btn.style.display = 'flex';
         btn.textContent = 'Import All Items';
         document.getElementById('excelFile').value = '';
         document.getElementById('importPreview').innerHTML = '';
         excelData = [];
         pendingImportData = null;
+        progressBar.style.width = '0%';
         alert('Import complete!');
       }, 2000);
     }
