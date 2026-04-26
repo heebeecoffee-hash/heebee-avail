@@ -804,6 +804,15 @@
       
       if (valid) {
         currentRole = selectedRole;
+        
+        // Save session to localStorage
+        localStorage.setItem('hb_avail_session', JSON.stringify({
+          role: selectedRole,
+          branch: currentBranch,
+          branchName: currentBranchName,
+          timestamp: Date.now()
+        }));
+        
         document.getElementById('loginScreen').classList.remove('active');
         document.getElementById(selectedRole + 'Screen').classList.add('active');
         
@@ -825,6 +834,9 @@
       selectedRole = null;
       currentBranch = null;
       currentBranchName = '';
+      
+      // Clear saved session
+      localStorage.removeItem('hb_avail_session');
       
       document.getElementById('kitchenScreen').classList.remove('active');
       document.getElementById('posScreen').classList.remove('active');
@@ -1347,8 +1359,17 @@
     }
     
     async function loadAdminItems() {
-      const itemsSnap = await window.dbGet(window.dbRef(window.db, `branches/${currentBranch}/items`));
+      // If viewing all branches, load from the selected branch in dropdown
+      const targetBranch = currentBranch === 'all_branches' 
+        ? document.getElementById('adminBranchSelect').value 
+        : currentBranch;
+      
+      console.log('loadAdminItems for branch:', targetBranch);
+      
+      const itemsSnap = await window.dbGet(window.dbRef(window.db, `branches/${targetBranch}/items`));
       allItems = itemsSnap.val() || {};
+      
+      console.log('Loaded items:', Object.keys(allItems).length);
       
       // Group by category
       const grouped = {};
@@ -1394,8 +1415,14 @@
         console.log('User cancelled delete');
         return;
       }
-      console.log('Deleting item from branch:', currentBranch);
-      await window.dbRemove(window.dbRef(window.db, `branches/${currentBranch}/items/${id}`));
+      
+      // If viewing all branches, delete from the selected branch in dropdown
+      const targetBranch = currentBranch === 'all_branches' 
+        ? document.getElementById('adminBranchSelect').value 
+        : currentBranch;
+      
+      console.log('Deleting item from branch:', targetBranch);
+      await window.dbRemove(window.dbRef(window.db, `branches/${targetBranch}/items/${id}`));
       console.log('Item deleted, reloading list');
       loadAdminItems();
     }
@@ -1406,7 +1433,12 @@
       const itemCount = Object.values(allItems).filter(i => i.category === category).length;
       console.log('Item count in category:', itemCount);
       
-      const modalText = `Delete ${itemCount} items in "${category}" from ${currentBranchName} or all branches?`;
+      // Get the correct branch name for display
+      const displayBranch = currentBranch === 'all_branches'
+        ? branches[document.getElementById('adminBranchSelect').value]
+        : currentBranchName;
+      
+      const modalText = `Delete ${itemCount} items in "${category}" from ${displayBranch} or all branches?`;
       console.log('Modal text:', modalText);
       
       document.getElementById('deleteCatModalText').textContent = modalText;
@@ -1421,16 +1453,22 @@
       closeModal('deleteCat');
       
       if (scope === 'current') {
-        // Delete from current branch
-        console.log('Deleting from current branch:', currentBranch);
+        // If viewing all branches, delete from the selected branch in dropdown
+        const targetBranch = currentBranch === 'all_branches' 
+          ? document.getElementById('adminBranchSelect').value 
+          : currentBranch;
+        const targetBranchName = branches[targetBranch];
+        
+        // Delete from current/selected branch
+        console.log('Deleting from branch:', targetBranch);
         const toDelete = Object.entries(allItems).filter(([id, item]) => item.category === pendingDeleteCategory);
         console.log('Items to delete:', toDelete.length);
         
         for (const [id, item] of toDelete) {
           console.log('Deleting item:', id, item.name);
-          await window.dbRemove(window.dbRef(window.db, `branches/${currentBranch}/items/${id}`));
+          await window.dbRemove(window.dbRef(window.db, `branches/${targetBranch}/items/${id}`));
         }
-        alert(`Category "${pendingDeleteCategory}" deleted from ${currentBranchName}`);
+        alert(`Category "${pendingDeleteCategory}" deleted from ${targetBranchName}`);
       } else {
         // Delete from all branches
         console.log('Deleting from all branches');
@@ -1452,6 +1490,39 @@
       console.log('Reloading admin items...');
       loadAdminItems();
     }
+    
+    // Restore session on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedSession = localStorage.getItem('hb_avail_session');
+      if (savedSession) {
+        try {
+          const session = JSON.parse(savedSession);
+          const age = Date.now() - session.timestamp;
+          
+          // Session expires after 8 hours
+          if (age < 8 * 60 * 60 * 1000) {
+            console.log('Restoring session:', session);
+            currentRole = session.role;
+            selectedRole = session.role;
+            currentBranch = session.branch;
+            currentBranchName = session.branchName;
+            
+            document.getElementById('loginScreen').classList.remove('active');
+            document.getElementById(session.role + 'Screen').classList.add('active');
+            
+            if (session.role === 'kitchen') loadKitchen();
+            if (session.role === 'pos') loadPos();
+            if (session.role === 'admin') loadAdmin();
+          } else {
+            console.log('Session expired, clearing');
+            localStorage.removeItem('hb_avail_session');
+          }
+        } catch (e) {
+          console.error('Error restoring session:', e);
+          localStorage.removeItem('hb_avail_session');
+        }
+      }
+    });
     
     // Register service worker
     if ('serviceWorker' in navigator) {
