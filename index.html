@@ -282,6 +282,62 @@
     }
     .logout-btn:hover { border-color:var(--text3); color:var(--text2); }
     
+    /* Branch select */
+    .branch-select {
+      padding:8px 14px; border-radius:20px; border:1px solid var(--input-bdr);
+      background:var(--input-bg); color:var(--text2); font-family:'Space Mono',monospace;
+      font-size:.55rem; letter-spacing:2px; cursor:pointer; text-transform:uppercase;
+      transition:border-color 0.2s, color 0.2s; outline:none;
+    }
+    .branch-select:hover { border-color:var(--text3); }
+    .branch-select option { background:var(--bg2); color:var(--text); }
+    
+    /* Popup modal */
+    .modal-overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,0.6); backdrop-filter:blur(8px);
+      -webkit-backdrop-filter:blur(8px); z-index:1000; display:none; align-items:center;
+      justify-content:center; animation:fadeIn 0.3s ease;
+    }
+    .modal-overlay.show { display:flex; }
+    @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
+    
+    .modal-box {
+      background:var(--surface); backdrop-filter:saturate(180%) blur(20px);
+      -webkit-backdrop-filter:saturate(180%) blur(20px); border:1px solid var(--border);
+      border-radius:24px; padding:32px 28px; max-width:400px; width:90%;
+      box-shadow:var(--shadow2); animation:slideUp 0.4s cubic-bezier(0.4,0,0.2,1);
+    }
+    @keyframes slideUp { from{opacity:0;transform:translateY(20px);} to{opacity:1;transform:translateY(0);} }
+    
+    .modal-title {
+      font-family:'Space Mono',monospace; font-size:.65rem; letter-spacing:3px;
+      text-transform:uppercase; color:var(--text2); margin-bottom:20px; text-align:center;
+    }
+    .modal-text {
+      font-size:.875rem; color:var(--text); margin-bottom:24px; text-align:center;
+      line-height:1.5;
+    }
+    .modal-actions {
+      display:flex; gap:10px;
+    }
+    .modal-btn {
+      flex:1; padding:14px; border-radius:18px; border:none; cursor:pointer;
+      font-family:'Nunito Sans',sans-serif; font-weight:600; font-size:.75rem;
+      letter-spacing:1px; text-transform:uppercase; transition:all 0.3s ease;
+    }
+    .modal-btn-primary {
+      background:var(--btn-bg); color:var(--btn-fg); box-shadow:0 4px 16px rgba(0,0,0,0.12);
+    }
+    .modal-btn-primary:hover { transform:translateY(-2px); box-shadow:0 6px 24px rgba(0,0,0,0.18); }
+    .modal-btn-secondary {
+      background:var(--input-bg); color:var(--text2); border:1px solid var(--input-bdr);
+    }
+    .modal-btn-secondary:hover { background:var(--surface); }
+    .modal-btn-danger {
+      background:rgba(239,68,68,0.12); color:#ef4444; border:1px solid rgba(239,68,68,0.3);
+    }
+    .modal-btn-danger:hover { background:rgba(239,68,68,0.18); }
+    
     /* Button */
     .btn {
       display:flex; align-items:center; justify-content:center; gap:8px;
@@ -368,10 +424,42 @@
   </div>
   
   <div class="app">
-    <!-- LOGIN SCREEN -->
-    <div id="loginScreen" class="screen active">
+    <!-- BRANCH SELECTION SCREEN -->
+    <div id="branchScreen" class="screen active">
       <div class="hdr">
-        <div class="hdr-eyebrow">Kitchen Display</div>
+        <div class="hdr-eyebrow">Heebee Coffee</div>
+        <div class="hdr-name">Select Branch</div>
+        <div class="hdr-rule"></div>
+      </div>
+      
+      <div class="role-grid" style="grid-template-columns:1fr;">
+        <div class="role-card" onclick="selectBranch('sarabha_nagar_ludhiana', 'Sarabha Nagar')">
+          <span class="role-icon">📍</span>
+          <div class="role-name">Sarabha Nagar, Ludhiana</div>
+        </div>
+        <div class="role-card" onclick="selectBranch('ghumar_mandi_ludhiana', 'Ghumar Mandi')">
+          <span class="role-icon">📍</span>
+          <div class="role-name">Ghumar Mandi, Ludhiana</div>
+        </div>
+        <div class="role-card" onclick="selectBranch('model_town_jalandhar', 'Model Town')">
+          <span class="role-icon">📍</span>
+          <div class="role-name">Model Town, Jalandhar</div>
+        </div>
+        <div class="role-card" onclick="selectBranch('lake_street_ludhiana', 'Lake Street')">
+          <span class="role-icon">📍</span>
+          <div class="role-name">Lake Street, Ludhiana</div>
+        </div>
+        <div class="role-card" onclick="selectBranch('somson_ludhiana', 'Somson')">
+          <span class="role-icon">📍</span>
+          <div class="role-name">Somson, Ludhiana</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen" class="screen">
+      <div class="hdr">
+        <div class="hdr-eyebrow" id="branchNameDisplay">Kitchen Display</div>
         <div class="hdr-name">Heebee Avail</div>
         <div class="hdr-rule"></div>
       </div>
@@ -390,6 +478,8 @@
           <div class="role-name">Admin</div>
         </div>
       </div>
+      
+      <button class="pin-back" onclick="backToBranches()" style="margin-top:20px;">← Change Branch</button>
       
       <div class="pin-wrap" id="pinWrap">
         <div class="pin-label" id="pinLabel">Enter PIN</div>
@@ -451,7 +541,16 @@
       
       <div class="top-bar">
         <div class="top-title">Admin Control</div>
-        <button class="logout-btn" onclick="logout()">Logout</button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="adminBranchSelect" class="branch-select" onchange="switchAdminBranch()">
+            <option value="sarabha_nagar_ludhiana">Sarabha Nagar</option>
+            <option value="ghumar_mandi_ludhiana">Ghumar Mandi</option>
+            <option value="model_town_jalandhar">Model Town</option>
+            <option value="lake_street_ludhiana">Lake Street</option>
+            <option value="somson_ludhiana">Somson</option>
+          </select>
+          <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
       </div>
       
       <div class="admin-tabs">
@@ -487,6 +586,43 @@
       
       <div id="adminManagePanel" class="admin-panel">
         <div class="glass-card" id="adminItemList"></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- POPUPS -->
+  <div id="importModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">Import Items</div>
+      <div class="modal-text" id="importModalText">Import to current branch or all branches?</div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-secondary" onclick="closeModal('import')">Cancel</button>
+        <button class="modal-btn modal-btn-primary" onclick="confirmImport('current')">Current Branch</button>
+        <button class="modal-btn modal-btn-primary" onclick="confirmImport('all')">All Branches</button>
+      </div>
+    </div>
+  </div>
+  
+  <div id="addModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">Add Item</div>
+      <div class="modal-text" id="addModalText">Add to current branch or all branches?</div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-secondary" onclick="closeModal('add')">Cancel</button>
+        <button class="modal-btn modal-btn-primary" onclick="confirmAdd('current')">Current Branch</button>
+        <button class="modal-btn modal-btn-primary" onclick="confirmAdd('all')">All Branches</button>
+      </div>
+    </div>
+  </div>
+  
+  <div id="deleteCatModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">Delete Category</div>
+      <div class="modal-text" id="deleteCatModalText">Delete from current branch or all branches?</div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-secondary" onclick="closeModal('deleteCat')">Cancel</button>
+        <button class="modal-btn modal-btn-danger" onclick="confirmDeleteCat('current')">Current Branch</button>
+        <button class="modal-btn modal-btn-danger" onclick="confirmDeleteCat('all')">All Branches</button>
       </div>
     </div>
   </div>
@@ -538,7 +674,37 @@
   <script>
     let currentRole = null;
     let selectedRole = null;
+    let currentBranch = null;
+    let currentBranchName = '';
     let allItems = {};
+    let pendingImportData = null;
+    let pendingAddData = null;
+    let pendingDeleteCategory = null;
+    
+    const branches = {
+      'sarabha_nagar_ludhiana': 'Sarabha Nagar',
+      'ghumar_mandi_ludhiana': 'Ghumar Mandi',
+      'model_town_jalandhar': 'Model Town',
+      'lake_street_ludhiana': 'Lake Street',
+      'somson_ludhiana': 'Somson'
+    };
+    
+    // Branch selection
+    function selectBranch(branchId, branchName) {
+      currentBranch = branchId;
+      currentBranchName = branchName;
+      document.getElementById('branchNameDisplay').textContent = branchName;
+      document.getElementById('branchScreen').classList.remove('active');
+      document.getElementById('loginScreen').classList.add('active');
+    }
+    
+    function backToBranches() {
+      currentBranch = null;
+      currentBranchName = '';
+      document.getElementById('loginScreen').classList.remove('active');
+      document.getElementById('branchScreen').classList.add('active');
+      backToRoles();
+    }
     
     // Theme
     function toggleTheme() {
@@ -624,12 +790,12 @@
     
     // Kitchen view
     async function loadKitchen() {
-      const itemsSnap = await window.dbGet(window.dbRef(window.db, 'items'));
+      const itemsSnap = await window.dbGet(window.dbRef(window.db, `branches/${currentBranch}/items`));
       allItems = itemsSnap.val() || {};
       renderKitchen();
       
       // Real-time updates
-      window.dbOnValue(window.dbRef(window.db, 'items'), snap => {
+      window.dbOnValue(window.dbRef(window.db, `branches/${currentBranch}/items`), snap => {
         allItems = snap.val() || {};
         renderKitchen();
       });
@@ -685,7 +851,7 @@
     
     async function toggleItem(id) {
       const item = allItems[id];
-      await window.dbUpdate(window.dbRef(window.db, `items/${id}`), {
+      await window.dbUpdate(window.dbRef(window.db, `branches/${currentBranch}/items/${id}`), {
         available: !item.available
       });
     }
@@ -694,26 +860,28 @@
       const updates = {};
       Object.entries(allItems).forEach(([id, item]) => {
         if (item.category === category) {
-          updates[`items/${id}/available`] = makeAvailable;
+          updates[`branches/${currentBranch}/items/${id}/available`] = makeAvailable;
         }
       });
       
       // Batch update all items in category
       for (const [path, value] of Object.entries(updates)) {
-        await window.dbUpdate(window.dbRef(window.db, path.split('/')[0]), {
-          [path.split('/')[1]]: { ...allItems[path.split('/')[1]], available: value }
+        const parts = path.split('/');
+        const itemId = parts[3];
+        await window.dbUpdate(window.dbRef(window.db, `branches/${currentBranch}/items/${itemId}`), {
+          available: value
         });
       }
     }
     
     // Barista view
     async function loadBarista() {
-      const itemsSnap = await window.dbGet(window.dbRef(window.db, 'items'));
+      const itemsSnap = await window.dbGet(window.dbRef(window.db, `branches/${currentBranch}/items`));
       allItems = itemsSnap.val() || {};
       renderBarista();
       
       // Real-time updates
-      window.dbOnValue(window.dbRef(window.db, 'items'), snap => {
+      window.dbOnValue(window.dbRef(window.db, `branches/${currentBranch}/items`), snap => {
         allItems = snap.val() || {};
         renderBarista();
       });
@@ -814,28 +982,62 @@
     async function importItems() {
       if (!excelData.length) return;
       
+      pendingImportData = excelData;
+      document.getElementById('importModalText').textContent = `Import ${excelData.length} items to ${currentBranchName} or all branches?`;
+      document.getElementById('importModal').classList.add('show');
+    }
+    
+    async function confirmImport(scope) {
+      closeModal('import');
+      
       const btn = document.getElementById('importBtn');
       btn.disabled = true;
       btn.textContent = 'Importing...';
       
-      let count = 0;
-      for (const row of excelData) {
-        const name = (row.Product || row.product || row.Item || row.item || '').trim();
-        const cat = (row.Category || row.category || row['Category '] || '').trim();
-        
-        if (!name || !cat) continue;
-        
-        const id = 'item_' + Date.now() + '_' + count;
-        await window.dbSet(window.dbRef(window.db, `items/${id}`), {
-          name,
-          category: cat,
-          available: true
-        });
-        count++;
-        btn.textContent = `Importing... ${count}/${excelData.length}`;
+      if (scope === 'current') {
+        // Import to current branch only
+        let count = 0;
+        for (const row of pendingImportData) {
+          const name = (row.Product || row.product || row.Item || row.item || '').trim();
+          const cat = (row.Category || row.category || row['Category '] || '').trim();
+          
+          if (!name || !cat) continue;
+          
+          const id = 'item_' + Date.now() + '_' + count;
+          await window.dbSet(window.dbRef(window.db, `branches/${currentBranch}/items/${id}`), {
+            name,
+            category: cat,
+            available: true
+          });
+          count++;
+          btn.textContent = `Importing... ${count}/${pendingImportData.length}`;
+        }
+        btn.textContent = `✓ Imported ${count} items to ${currentBranchName}`;
+      } else {
+        // Import to all branches
+        let totalCount = 0;
+        for (const branchId of Object.keys(branches)) {
+          let count = 0;
+          for (const row of pendingImportData) {
+            const name = (row.Product || row.product || row.Item || row.item || '').trim();
+            const cat = (row.Category || row.category || row['Category '] || '').trim();
+            
+            if (!name || !cat) continue;
+            
+            const id = 'item_' + Date.now() + '_' + branchId + '_' + count;
+            await window.dbSet(window.dbRef(window.db, `branches/${branchId}/items/${id}`), {
+              name,
+              category: cat,
+              available: true
+            });
+            count++;
+            totalCount++;
+          }
+          btn.textContent = `Importing to ${branches[branchId]}... ${totalCount}`;
+        }
+        btn.textContent = `✓ Imported to all branches`;
       }
       
-      btn.textContent = `✓ Imported ${count} items`;
       setTimeout(() => {
         btn.style.display = 'none';
         btn.disabled = false;
@@ -843,13 +1045,29 @@
         document.getElementById('excelFile').value = '';
         document.getElementById('importPreview').innerHTML = '';
         excelData = [];
-        alert(`Successfully imported ${count} items!`);
+        pendingImportData = null;
+        alert('Import complete!');
       }, 2000);
     }
     
+    function closeModal(type) {
+      document.getElementById(type + 'Modal').classList.remove('show');
+      if (type === 'import') pendingImportData = null;
+      if (type === 'add') pendingAddData = null;
+      if (type === 'deleteCat') pendingDeleteCategory = null;
+    }
+    
     async function loadAdmin() {
-      const itemsSnap = await window.dbGet(window.dbRef(window.db, 'items'));
+      document.getElementById('adminBranchSelect').value = currentBranch;
+      const itemsSnap = await window.dbGet(window.dbRef(window.db, `branches/${currentBranch}/items`));
       allItems = itemsSnap.val() || {};
+    }
+    
+    function switchAdminBranch() {
+      currentBranch = document.getElementById('adminBranchSelect').value;
+      currentBranchName = branches[currentBranch];
+      loadAdmin();
+      if (currentAdminTab === 'manage') loadAdminItems();
     }
     
     async function addItem() {
@@ -861,34 +1079,77 @@
         return;
       }
       
-      const id = 'item_' + Date.now();
-      await window.dbSet(window.dbRef(window.db, `items/${id}`), {
-        name,
-        category: cat,
-        available: true
-      });
+      pendingAddData = { name, category: cat };
+      document.getElementById('addModalText').textContent = `Add "${name}" to ${currentBranchName} or all branches?`;
+      document.getElementById('addModal').classList.add('show');
+    }
+    
+    async function confirmAdd(scope) {
+      closeModal('add');
+      
+      if (scope === 'current') {
+        const id = 'item_' + Date.now();
+        await window.dbSet(window.dbRef(window.db, `branches/${currentBranch}/items/${id}`), {
+          ...pendingAddData,
+          available: true
+        });
+        alert('Item added to ' + currentBranchName);
+      } else {
+        // Add to all branches
+        let count = 0;
+        for (const branchId of Object.keys(branches)) {
+          const id = 'item_' + Date.now() + '_' + count;
+          await window.dbSet(window.dbRef(window.db, `branches/${branchId}/items/${id}`), {
+            ...pendingAddData,
+            available: true
+          });
+          count++;
+        }
+        alert('Item added to all branches');
+      }
       
       document.getElementById('newItemName').value = '';
       document.getElementById('newItemCat').value = '';
-      alert('Item added successfully');
+      pendingAddData = null;
     }
     
     async function loadAdminItems() {
-      const itemsSnap = await window.dbGet(window.dbRef(window.db, 'items'));
+      const itemsSnap = await window.dbGet(window.dbRef(window.db, `branches/${currentBranch}/items`));
       allItems = itemsSnap.val() || {};
       
-      const sorted = Object.entries(allItems).sort((a,b) => a[1].name.localeCompare(b[1].name));
+      // Group by category
+      const grouped = {};
+      Object.entries(allItems).forEach(([id, item]) => {
+        if (!grouped[item.category]) grouped[item.category] = [];
+        grouped[item.category].push({id, ...item});
+      });
       
       let html = '<div style="padding:4px;">';
-      sorted.forEach(([id, item]) => {
+      
+      // Show categories with delete button
+      Object.entries(grouped).sort().forEach(([cat, items]) => {
         html += `
-          <div class="item-edit-row">
-            <div class="item-edit-name">${item.name}</div>
-            <div class="item-edit-cat">${item.category}</div>
-            <button class="item-del-btn" onclick="deleteItem('${id}')">Delete</button>
-          </div>
+          <div style="padding:16px 14px;border-bottom:1px solid var(--border2);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <div style="font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:3px;text-transform:uppercase;color:var(--text2);">
+                ${cat} <span style="color:var(--text3);margin-left:8px;">(${items.length})</span>
+              </div>
+              <button class="item-del-btn" onclick="showDeleteCategoryModal('${cat}')">Delete Category</button>
+            </div>
         `;
+        
+        items.sort((a,b) => a.name.localeCompare(b.name)).forEach(item => {
+          html += `
+            <div class="item-edit-row">
+              <div class="item-edit-name">${item.name}</div>
+              <button class="item-del-btn" onclick="deleteItem('${item.id}')">Delete</button>
+            </div>
+          `;
+        });
+        
+        html += '</div>';
       });
+      
       html += '</div>';
       
       document.getElementById('adminItemList').innerHTML = html || '<div style="padding:40px;text-align:center;color:var(--text3);">No items yet</div>';
@@ -896,7 +1157,41 @@
     
     async function deleteItem(id) {
       if (!confirm('Delete this item?')) return;
-      await window.dbRemove(window.dbRef(window.db, `items/${id}`));
+      await window.dbRemove(window.dbRef(window.db, `branches/${currentBranch}/items/${id}`));
+      loadAdminItems();
+    }
+    
+    function showDeleteCategoryModal(category) {
+      pendingDeleteCategory = category;
+      const itemCount = Object.values(allItems).filter(i => i.category === category).length;
+      document.getElementById('deleteCatModalText').textContent = `Delete ${itemCount} items in "${category}" from ${currentBranchName} or all branches?`;
+      document.getElementById('deleteCatModal').classList.add('show');
+    }
+    
+    async function confirmDeleteCat(scope) {
+      closeModal('deleteCat');
+      
+      if (scope === 'current') {
+        // Delete from current branch
+        const toDelete = Object.entries(allItems).filter(([id, item]) => item.category === pendingDeleteCategory);
+        for (const [id, item] of toDelete) {
+          await window.dbRemove(window.dbRef(window.db, `branches/${currentBranch}/items/${id}`));
+        }
+        alert(`Category "${pendingDeleteCategory}" deleted from ${currentBranchName}`);
+      } else {
+        // Delete from all branches
+        for (const branchId of Object.keys(branches)) {
+          const branchSnap = await window.dbGet(window.dbRef(window.db, `branches/${branchId}/items`));
+          const branchItems = branchSnap.val() || {};
+          const toDelete = Object.entries(branchItems).filter(([id, item]) => item.category === pendingDeleteCategory);
+          for (const [id, item] of toDelete) {
+            await window.dbRemove(window.dbRef(window.db, `branches/${branchId}/items/${id}`));
+          }
+        }
+        alert(`Category "${pendingDeleteCategory}" deleted from all branches`);
+      }
+      
+      pendingDeleteCategory = null;
       loadAdminItems();
     }
     
