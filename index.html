@@ -532,7 +532,15 @@
     const saved = localStorage.getItem('hb_avail_theme') || 'light';
     document.body.className = saved;
     document.getElementById('themeIcon').textContent = saved === 'light' ? '☀️' : '🌙';
-    
+    const firebaseConfig = {
+  apiKey: "AIzaSyDTSLI5Q1VK1RDiWqoRh4eFH3hh0iZymBQ",
+  authDomain: "heebee-avail.firebaseapp.com",
+  databaseURL: "https://heebee-avail-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "heebee-avail",
+  storageBucket: "heebee-avail.firebasestorage.app",
+  messagingSenderId: "392385259255",
+  appId: "1:392385259255:web:1748e8bb5039418b23d5f2"
+};
     // Role selection
     function selectRole(role) {
       selectedRole = role;
