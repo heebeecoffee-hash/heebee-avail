@@ -424,42 +424,10 @@
   </div>
   
   <div class="app">
-    <!-- BRANCH SELECTION SCREEN -->
-    <div id="branchScreen" class="screen active">
-      <div class="hdr">
-        <div class="hdr-eyebrow">Heebee Coffee</div>
-        <div class="hdr-name">Select Branch</div>
-        <div class="hdr-rule"></div>
-      </div>
-      
-      <div class="role-grid" style="grid-template-columns:1fr;">
-        <div class="role-card" onclick="selectBranch('sarabha_nagar_ludhiana', 'Sarabha Nagar')">
-          <span class="role-icon">📍</span>
-          <div class="role-name">Sarabha Nagar, Ludhiana</div>
-        </div>
-        <div class="role-card" onclick="selectBranch('ghumar_mandi_ludhiana', 'Ghumar Mandi')">
-          <span class="role-icon">📍</span>
-          <div class="role-name">Ghumar Mandi, Ludhiana</div>
-        </div>
-        <div class="role-card" onclick="selectBranch('model_town_jalandhar', 'Model Town')">
-          <span class="role-icon">📍</span>
-          <div class="role-name">Model Town, Jalandhar</div>
-        </div>
-        <div class="role-card" onclick="selectBranch('lake_street_ludhiana', 'Lake Street')">
-          <span class="role-icon">📍</span>
-          <div class="role-name">Lake Street, Ludhiana</div>
-        </div>
-        <div class="role-card" onclick="selectBranch('somson_ludhiana', 'Somson')">
-          <span class="role-icon">📍</span>
-          <div class="role-name">Somson, Ludhiana</div>
-        </div>
-      </div>
-    </div>
-    
     <!-- LOGIN SCREEN -->
-    <div id="loginScreen" class="screen">
+    <div id="loginScreen" class="screen active">
       <div class="hdr">
-        <div class="hdr-eyebrow" id="branchNameDisplay">Kitchen Display</div>
+        <div class="hdr-eyebrow">Kitchen Display</div>
         <div class="hdr-name">Heebee Avail</div>
         <div class="hdr-rule"></div>
       </div>
@@ -469,9 +437,9 @@
           <span class="role-icon">👨‍🍳</span>
           <div class="role-name">Kitchen</div>
         </div>
-        <div class="role-card" onclick="selectRole('barista')">
-          <span class="role-icon">☕</span>
-          <div class="role-name">Barista</div>
+        <div class="role-card" onclick="selectRole('pos')">
+          <span class="role-icon">💳</span>
+          <div class="role-name">POS</div>
         </div>
         <div class="role-card" onclick="selectRole('admin')">
           <span class="role-icon">⚙️</span>
@@ -479,7 +447,18 @@
         </div>
       </div>
       
-      <button class="pin-back" onclick="backToBranches()" style="margin-top:20px;">← Change Branch</button>
+      <div style="margin-top:24px;">
+        <label class="form-label" style="display:block;text-align:center;margin-bottom:12px;">Select Branch</label>
+        <select id="branchSelect" class="form-select" style="text-align:center;">
+          <option value="sarabha_nagar_ludhiana">📍 Sarabha Nagar, Ludhiana</option>
+          <option value="ghumar_mandi_ludhiana">📍 Ghumar Mandi, Ludhiana</option>
+          <option value="model_town_jalandhar">📍 Model Town, Jalandhar</option>
+          <option value="lake_street_ludhiana">📍 Lake Street, Ludhiana</option>
+          <option value="somson_ludhiana">📍 Somson, Ludhiana</option>
+        </select>
+      </div>
+      
+      <button class="btn" onclick="proceedToPin()" style="margin-top:24px;">Continue</button>
       
       <div class="pin-wrap" id="pinWrap">
         <div class="pin-label" id="pinLabel">Enter PIN</div>
@@ -515,8 +494,8 @@
       <div id="kitchenList"></div>
     </div>
     
-    <!-- BARISTA SCREEN -->
-    <div id="baristaScreen" class="screen">
+    <!-- POS SCREEN -->
+    <div id="posScreen" class="screen">
       <div class="hdr">
         <div class="hdr-eyebrow">Front Display</div>
         <div class="hdr-name">Unavailable Items</div>
@@ -524,11 +503,11 @@
       </div>
       
       <div class="top-bar">
-        <div class="top-title" id="baristaStatus">Loading...</div>
+        <div class="top-title" id="posStatus">Loading...</div>
         <button class="logout-btn" onclick="logout()">Logout</button>
       </div>
       
-      <div id="baristaList"></div>
+      <div id="posList"></div>
     </div>
     
     <!-- ADMIN SCREEN -->
@@ -557,6 +536,7 @@
         <button class="admin-tab active" onclick="switchAdminTab('add')">Add Item</button>
         <button class="admin-tab" onclick="switchAdminTab('import')">Import Excel</button>
         <button class="admin-tab" onclick="switchAdminTab('manage')">Manage</button>
+        <button class="admin-tab" onclick="switchAdminTab('dashboard')">Dashboard</button>
       </div>
       
       <div id="adminAddPanel" class="admin-panel active">
@@ -586,6 +566,10 @@
       
       <div id="adminManagePanel" class="admin-panel">
         <div class="glass-card" id="adminItemList"></div>
+      </div>
+      
+      <div id="adminDashboardPanel" class="admin-panel">
+        <div id="dashboardView"></div>
       </div>
     </div>
   </div>
@@ -659,7 +643,7 @@
       if (!snap.exists()) {
         set(ref(db, 'config'), {
           kitchenPin: '1234',
-          baristaPin: '5678',
+          posPin: '5678',
           adminPin: '9999'
         });
       }
@@ -667,7 +651,7 @@
     
     // Load items
     window.loadKitchen = loadKitchen;
-    window.loadBarista = loadBarista;
+    window.loadPos = loadPos;
     window.loadAdmin = loadAdmin;
   </script>
   
@@ -689,21 +673,87 @@
       'somson_ludhiana': 'Somson'
     };
     
-    // Branch selection
-    function selectBranch(branchId, branchName) {
-      currentBranch = branchId;
-      currentBranchName = branchName;
-      document.getElementById('branchNameDisplay').textContent = branchName;
-      document.getElementById('branchScreen').classList.remove('active');
-      document.getElementById('loginScreen').classList.add('active');
+    // Role selection - adds "All Branches" option for Admin
+    function selectRole(role) {
+      selectedRole = role;
+      
+      // Highlight selected role card
+      document.querySelectorAll('.role-card').forEach((card, index) => {
+        if ((role === 'kitchen' && index === 0) || 
+            (role === 'pos' && index === 1) || 
+            (role === 'admin' && index === 2)) {
+          card.style.opacity = '1';
+          card.style.transform = 'scale(1.02)';
+        } else {
+          card.style.opacity = '0.5';
+          card.style.transform = 'scale(1)';
+        }
+      });
+      
+      // Update branch dropdown
+      const branchSelect = document.getElementById('branchSelect');
+      
+      // Remove "All Branches" option if it exists
+      Array.from(branchSelect.options).forEach(option => {
+        if (option.value === 'all_branches') {
+          branchSelect.removeChild(option);
+        }
+      });
+      
+      // Add "All Branches" option if Admin is selected
+      if (role === 'admin') {
+        const option = document.createElement('option');
+        option.value = 'all_branches';
+        option.textContent = '🌐 All Branches';
+        branchSelect.appendChild(option);
+      }
     }
     
-    function backToBranches() {
-      currentBranch = null;
-      currentBranchName = '';
-      document.getElementById('loginScreen').classList.remove('active');
-      document.getElementById('branchScreen').classList.add('active');
-      backToRoles();
+    function backToRoles() {
+      selectedRole = null;
+      document.getElementById('pinWrap').classList.remove('show');
+      document.getElementById('roleGrid').style.display = 'grid';
+      document.querySelector('#loginScreen > div:nth-child(3)').style.display = 'block'; // Branch dropdown
+      document.querySelector('#loginScreen .btn').style.display = 'flex'; // Continue button
+      document.getElementById('pinError').style.display = 'none';
+      
+      // Reset role card opacity and transform
+      document.querySelectorAll('.role-card').forEach(card => {
+        card.style.opacity = '1';
+        card.style.transform = 'scale(1)';
+      });
+      
+      // Remove "All Branches" option from dropdown
+      const branchSelect = document.getElementById('branchSelect');
+      Array.from(branchSelect.options).forEach(option => {
+        if (option.value === 'all_branches') {
+          branchSelect.removeChild(option);
+        }
+      });
+      
+      clearPin();
+    }
+    
+    function proceedToPin() {
+      if (!selectedRole) {
+        alert('Please select a role first');
+        return;
+      }
+      
+      currentBranch = document.getElementById('branchSelect').value;
+      currentBranchName = currentBranch === 'all_branches' 
+        ? 'All Branches' 
+        : branches[currentBranch];
+      
+      // Hide role selection and branch dropdown
+      document.getElementById('roleGrid').style.display = 'none';
+      document.querySelector('#loginScreen > div:nth-child(3)').style.display = 'none'; // Branch dropdown div
+      document.querySelector('#loginScreen .btn').style.display = 'none'; // Continue button
+      
+      // Show PIN entry
+      document.getElementById('pinWrap').classList.add('show');
+      document.getElementById('pinLabel').textContent = `${selectedRole.toUpperCase()} PIN`;
+      document.getElementById('p1').focus();
     }
     
     // Theme
@@ -758,7 +808,7 @@
       
       let valid = false;
       if (selectedRole === 'kitchen' && pin === config.kitchenPin) valid = true;
-      if (selectedRole === 'barista' && pin === config.baristaPin) valid = true;
+      if (selectedRole === 'pos' && pin === config.posPin) valid = true;
       if (selectedRole === 'admin' && pin === config.adminPin) valid = true;
       
       if (valid) {
@@ -767,7 +817,7 @@
         document.getElementById(selectedRole + 'Screen').classList.add('active');
         
         if (selectedRole === 'kitchen') loadKitchen();
-        if (selectedRole === 'barista') loadBarista();
+        if (selectedRole === 'pos') loadPos();
         if (selectedRole === 'admin') loadAdmin();
       } else {
         document.getElementById('pinError').style.display = 'block';
@@ -781,10 +831,15 @@
     
     function logout() {
       currentRole = null;
+      selectedRole = null;
+      currentBranch = null;
+      currentBranchName = '';
+      
       document.getElementById('kitchenScreen').classList.remove('active');
-      document.getElementById('baristaScreen').classList.remove('active');
+      document.getElementById('posScreen').classList.remove('active');
       document.getElementById('adminScreen').classList.remove('active');
       document.getElementById('loginScreen').classList.add('active');
+      
       backToRoles();
     }
     
@@ -851,49 +906,60 @@
     
     async function toggleItem(id) {
       const item = allItems[id];
-      await window.dbUpdate(window.dbRef(window.db, `branches/${currentBranch}/items/${id}`), {
-        available: !item.available
-      });
+      const newAvailable = !item.available;
+      
+      const update = {
+        available: newAvailable
+      };
+      
+      // If marking as N/A, save timestamp
+      if (!newAvailable) {
+        update.unavailableSince = Date.now();
+      } else {
+        // If marking as available, clear timestamp
+        update.unavailableSince = null;
+      }
+      
+      await window.dbUpdate(window.dbRef(window.db, `branches/${currentBranch}/items/${id}`), update);
     }
     
     async function toggleCategory(category, makeAvailable) {
       const updates = {};
       Object.entries(allItems).forEach(([id, item]) => {
         if (item.category === category) {
-          updates[`branches/${currentBranch}/items/${id}/available`] = makeAvailable;
+          updates[id] = {
+            available: makeAvailable,
+            unavailableSince: makeAvailable ? null : Date.now()
+          };
         }
       });
       
       // Batch update all items in category
-      for (const [path, value] of Object.entries(updates)) {
-        const parts = path.split('/');
-        const itemId = parts[3];
-        await window.dbUpdate(window.dbRef(window.db, `branches/${currentBranch}/items/${itemId}`), {
-          available: value
-        });
+      for (const [id, update] of Object.entries(updates)) {
+        await window.dbUpdate(window.dbRef(window.db, `branches/${currentBranch}/items/${id}`), update);
       }
     }
     
-    // Barista view
-    async function loadBarista() {
+    // POS view
+    async function loadPos() {
       const itemsSnap = await window.dbGet(window.dbRef(window.db, `branches/${currentBranch}/items`));
       allItems = itemsSnap.val() || {};
-      renderBarista();
+      renderPos();
       
       // Real-time updates
       window.dbOnValue(window.dbRef(window.db, `branches/${currentBranch}/items`), snap => {
         allItems = snap.val() || {};
-        renderBarista();
+        renderPos();
       });
     }
     
-    function renderBarista() {
+    function renderPos() {
       const naItems = Object.entries(allItems).filter(([id, item]) => !item.available);
       
-      document.getElementById('baristaStatus').textContent = `${naItems.length} item${naItems.length !== 1 ? 's' : ''} unavailable`;
+      document.getElementById('posStatus').textContent = `${naItems.length} item${naItems.length !== 1 ? 's' : ''} unavailable`;
       
       if (naItems.length === 0) {
-        document.getElementById('baristaList').innerHTML = `
+        document.getElementById('posList').innerHTML = `
           <div class="empty-state">
             <span class="empty-icon">✦</span>
             <div class="empty-title">All Items Available</div>
@@ -921,7 +987,7 @@
         });
       });
       
-      document.getElementById('baristaList').innerHTML = html;
+      document.getElementById('posList').innerHTML = html;
     }
     
     // Admin panel
@@ -936,6 +1002,84 @@
       document.getElementById(`admin${tab.charAt(0).toUpperCase() + tab.slice(1)}Panel`).classList.add('active');
       
       if (tab === 'manage') loadAdminItems();
+      if (tab === 'dashboard') loadDashboard();
+    }
+    
+    // Format timestamp to "2:45 PM (2h 15m ago)"
+    function formatDuration(timestamp) {
+      if (!timestamp) return '';
+      
+      const now = Date.now();
+      const diff = now - timestamp;
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(minutes / 60);
+      const days = Math.floor(hours / 24);
+      
+      let relative = '';
+      if (days > 0) {
+        relative = `${days}d ${hours % 24}h ago`;
+      } else if (hours > 0) {
+        relative = `${hours}h ${minutes % 60}m ago`;
+      } else {
+        relative = `${minutes}m ago`;
+      }
+      
+      const time = new Date(timestamp);
+      const timeStr = time.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      
+      return `${timeStr} (${relative})`;
+    }
+    
+    // Dashboard view
+    async function loadDashboard() {
+      let html = '<div style="display:flex;flex-direction:column;gap:16px;">';
+      
+      for (const [branchId, branchName] of Object.entries(branches)) {
+        const itemsSnap = await window.dbGet(window.dbRef(window.db, `branches/${branchId}/items`));
+        const items = itemsSnap.val() || {};
+        const naItems = Object.entries(items).filter(([id, item]) => !item.available);
+        
+        html += `
+          <div class="glass-card" style="padding:20px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+              <div style="font-family:'Space Mono',monospace;font-size:.7rem;letter-spacing:3px;text-transform:uppercase;color:var(--text2);">
+                📍 ${branchName}
+              </div>
+              <div style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--na-text);background:var(--na-bg);padding:4px 12px;border-radius:20px;">
+                ${naItems.length} N/A
+              </div>
+            </div>
+        `;
+        
+        if (naItems.length === 0) {
+          html += `
+            <div style="text-align:center;padding:20px 0;color:var(--text3);font-size:.85rem;">
+              All items available ✓
+            </div>
+          `;
+        } else {
+          naItems.forEach(([id, item]) => {
+            html += `
+              <div style="padding:12px 0;border-bottom:1px solid var(--border2);">
+                <div style="font-size:.9rem;color:var(--text);margin-bottom:4px;">${item.name}</div>
+                <div style="font-size:.7rem;color:var(--text3);">
+                  ${item.category} • ${formatDuration(item.unavailableSince)}
+                </div>
+              </div>
+            `;
+          });
+        }
+        
+        html += `</div>`;
+      }
+      
+      html += '</div>';
+      document.getElementById('dashboardView').innerHTML = html;
+      
+      // Auto-refresh every 30 seconds
+      if (currentAdminTab === 'dashboard') {
+        setTimeout(loadDashboard, 30000);
+      }
     }
     
     // Excel import
@@ -992,11 +1136,12 @@
       
       const btn = document.getElementById('importBtn');
       btn.disabled = true;
-      btn.textContent = 'Importing...';
       
       if (scope === 'current') {
         // Import to current branch only
         let count = 0;
+        const total = pendingImportData.length;
+        
         for (const row of pendingImportData) {
           const name = (row.Product || row.product || row.Item || row.item || '').trim();
           const cat = (row.Category || row.category || row['Category '] || '').trim();
@@ -1007,15 +1152,23 @@
           await window.dbSet(window.dbRef(window.db, `branches/${currentBranch}/items/${id}`), {
             name,
             category: cat,
-            available: true
+            available: true,
+            unavailableSince: null
           });
           count++;
-          btn.textContent = `Importing... ${count}/${pendingImportData.length}`;
+          btn.textContent = `Importing to ${currentBranchName}... ${count} of ${total}`;
         }
         btn.textContent = `✓ Imported ${count} items to ${currentBranchName}`;
       } else {
         // Import to all branches
         let totalCount = 0;
+        const itemsPerBranch = pendingImportData.filter(row => {
+          const name = (row.Product || row.product || row.Item || row.item || '').trim();
+          const cat = (row.Category || row.category || row['Category '] || '').trim();
+          return name && cat;
+        }).length;
+        const totalItems = itemsPerBranch * Object.keys(branches).length;
+        
         for (const branchId of Object.keys(branches)) {
           let count = 0;
           for (const row of pendingImportData) {
@@ -1028,14 +1181,15 @@
             await window.dbSet(window.dbRef(window.db, `branches/${branchId}/items/${id}`), {
               name,
               category: cat,
-              available: true
+              available: true,
+              unavailableSince: null
             });
             count++;
             totalCount++;
+            btn.textContent = `Importing to all branches... ${totalCount} of ${totalItems}`;
           }
-          btn.textContent = `Importing to ${branches[branchId]}... ${totalCount}`;
         }
-        btn.textContent = `✓ Imported to all branches`;
+        btn.textContent = `✓ Imported ${itemsPerBranch} items to all branches`;
       }
       
       setTimeout(() => {
@@ -1091,7 +1245,8 @@
         const id = 'item_' + Date.now();
         await window.dbSet(window.dbRef(window.db, `branches/${currentBranch}/items/${id}`), {
           ...pendingAddData,
-          available: true
+          available: true,
+          unavailableSince: null
         });
         alert('Item added to ' + currentBranchName);
       } else {
@@ -1101,7 +1256,8 @@
           const id = 'item_' + Date.now() + '_' + count;
           await window.dbSet(window.dbRef(window.db, `branches/${branchId}/items/${id}`), {
             ...pendingAddData,
-            available: true
+            available: true,
+            unavailableSince: null
           });
           count++;
         }
