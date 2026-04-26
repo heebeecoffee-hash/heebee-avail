@@ -6,6 +6,7 @@
   <title>Heebee Avail</title>
   <link rel="manifest" href="manifest.json">
   <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@200;300;400;600&family=Space+Mono:wght@400&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
     html { font-size:115%; }
@@ -198,6 +199,13 @@
       letter-spacing:1px; background:var(--surface2); padding:3px 9px; border-radius:20px;
       transition:all 0.4s ease;
     }
+    .cat-toggle-btn {
+      padding:5px 12px; border-radius:16px; border:1px solid var(--input-bdr);
+      background:var(--input-bg); color:var(--text3); font-size:.55rem;
+      cursor:pointer; font-family:'Space Mono',monospace; letter-spacing:1px;
+      transition:all 0.2s ease; text-transform:uppercase;
+    }
+    .cat-toggle-btn:hover { background:var(--surface); color:var(--text2); }
     
     /* Item row */
     .item-list { padding:4px; }
@@ -448,6 +456,7 @@
       
       <div class="admin-tabs">
         <button class="admin-tab active" onclick="switchAdminTab('add')">Add Item</button>
+        <button class="admin-tab" onclick="switchAdminTab('import')">Import Excel</button>
         <button class="admin-tab" onclick="switchAdminTab('manage')">Manage</button>
       </div>
       
@@ -462,6 +471,17 @@
             <input type="text" class="form-input" id="newItemCat" placeholder="e.g., Coffee">
           </div>
           <button class="btn" onclick="addItem()">Add Item</button>
+        </div>
+      </div>
+      
+      <div id="adminImportPanel" class="admin-panel">
+        <div class="glass-card" style="padding:24px;">
+          <div class="form-group">
+            <label class="form-label">Upload Excel File (.xls or .xlsx)</label>
+            <input type="file" accept=".xls,.xlsx" class="form-input" id="excelFile" onchange="previewExcel()" style="padding:12px;">
+          </div>
+          <div id="importPreview"></div>
+          <button class="btn" id="importBtn" onclick="importItems()" style="display:none;">Import All Items</button>
         </div>
       </div>
       
@@ -532,15 +552,7 @@
     const saved = localStorage.getItem('hb_avail_theme') || 'light';
     document.body.className = saved;
     document.getElementById('themeIcon').textContent = saved === 'light' ? '☀️' : '🌙';
-    const firebaseConfig = {
-  apiKey: "AIzaSyDTSLI5Q1VK1RDiWqoRh4eFH3hh0iZymBQ",
-  authDomain: "heebee-avail.firebaseapp.com",
-  databaseURL: "https://heebee-avail-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "heebee-avail",
-  storageBucket: "heebee-avail.firebasestorage.app",
-  messagingSenderId: "392385259255",
-  appId: "1:392385259255:web:1748e8bb5039418b23d5f2"
-};
+    
     // Role selection
     function selectRole(role) {
       selectedRole = role;
@@ -639,12 +651,16 @@
       let html = '';
       Object.entries(grouped).sort().forEach(([cat, items]) => {
         const naInCat = items.filter(i => !i.available).length;
+        const allAvailable = naInCat === 0;
         html += `
           <div class="glass-card">
             <div class="cat-head">
               <span class="cat-icon">◈</span>
               <span class="cat-name">${cat}</span>
               <span class="cat-count">${naInCat} / ${items.length}</span>
+              <button class="cat-toggle-btn" onclick="toggleCategory('${cat}', ${!allAvailable})">
+                ${allAvailable ? 'Mark N/A' : 'Mark Available'}
+              </button>
             </div>
             <div class="item-list">
               ${items.sort((a,b) => a.name.localeCompare(b.name)).map(item => `
@@ -672,6 +688,22 @@
       await window.dbUpdate(window.dbRef(window.db, `items/${id}`), {
         available: !item.available
       });
+    }
+    
+    async function toggleCategory(category, makeAvailable) {
+      const updates = {};
+      Object.entries(allItems).forEach(([id, item]) => {
+        if (item.category === category) {
+          updates[`items/${id}/available`] = makeAvailable;
+        }
+      });
+      
+      // Batch update all items in category
+      for (const [path, value] of Object.entries(updates)) {
+        await window.dbUpdate(window.dbRef(window.db, path.split('/')[0]), {
+          [path.split('/')[1]]: { ...allItems[path.split('/')[1]], available: value }
+        });
+      }
     }
     
     // Barista view
@@ -726,6 +758,7 @@
     
     // Admin panel
     let currentAdminTab = 'add';
+    let excelData = [];
     
     function switchAdminTab(tab) {
       currentAdminTab = tab;
@@ -735,6 +768,83 @@
       document.getElementById(`admin${tab.charAt(0).toUpperCase() + tab.slice(1)}Panel`).classList.add('active');
       
       if (tab === 'manage') loadAdminItems();
+    }
+    
+    // Excel import
+    function previewExcel() {
+      const file = document.getElementById('excelFile').files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, {type: 'array'});
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+        
+        excelData = jsonData;
+        
+        // Preview first 10 rows
+        let html = `
+          <div style="margin:20px 0;">
+            <div style="font-family:'Space Mono',monospace;font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:12px;">
+              Preview: ${jsonData.length} items found
+            </div>
+            <div style="max-height:300px;overflow-y:auto;background:var(--input-bg);border-radius:12px;padding:12px;">
+        `;
+        
+        jsonData.slice(0, 10).forEach((row, i) => {
+          const name = row.Product || row.product || row.Item || row.item || '';
+          const cat = row.Category || row.category || row['Category '] || '';
+          html += `
+            <div style="padding:8px;border-bottom:1px solid var(--border2);font-size:.8rem;">
+              <span style="color:var(--text);">${name}</span>
+              <span style="color:var(--text3);margin-left:12px;font-size:.7rem;">${cat}</span>
+            </div>
+          `;
+        });
+        
+        html += `</div></div>`;
+        document.getElementById('importPreview').innerHTML = html;
+        document.getElementById('importBtn').style.display = 'flex';
+      };
+      reader.readAsArrayBuffer(file);
+    }
+    
+    async function importItems() {
+      if (!excelData.length) return;
+      
+      const btn = document.getElementById('importBtn');
+      btn.disabled = true;
+      btn.textContent = 'Importing...';
+      
+      let count = 0;
+      for (const row of excelData) {
+        const name = (row.Product || row.product || row.Item || row.item || '').trim();
+        const cat = (row.Category || row.category || row['Category '] || '').trim();
+        
+        if (!name || !cat) continue;
+        
+        const id = 'item_' + Date.now() + '_' + count;
+        await window.dbSet(window.dbRef(window.db, `items/${id}`), {
+          name,
+          category: cat,
+          available: true
+        });
+        count++;
+        btn.textContent = `Importing... ${count}/${excelData.length}`;
+      }
+      
+      btn.textContent = `✓ Imported ${count} items`;
+      setTimeout(() => {
+        btn.style.display = 'none';
+        btn.disabled = false;
+        btn.textContent = 'Import All Items';
+        document.getElementById('excelFile').value = '';
+        document.getElementById('importPreview').innerHTML = '';
+        excelData = [];
+        alert(`Successfully imported ${count} items!`);
+      }, 2000);
     }
     
     async function loadAdmin() {
