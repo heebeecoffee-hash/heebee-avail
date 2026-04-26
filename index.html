@@ -1389,34 +1389,58 @@
     }
     
     async function deleteItem(id) {
-      if (!confirm('Delete this item?')) return;
+      console.log('deleteItem called for:', id);
+      if (!confirm('Delete this item?')) {
+        console.log('User cancelled delete');
+        return;
+      }
+      console.log('Deleting item from branch:', currentBranch);
       await window.dbRemove(window.dbRef(window.db, `branches/${currentBranch}/items/${id}`));
+      console.log('Item deleted, reloading list');
       loadAdminItems();
     }
     
     function showDeleteCategoryModal(category) {
+      console.log('showDeleteCategoryModal called for:', category);
       pendingDeleteCategory = category;
       const itemCount = Object.values(allItems).filter(i => i.category === category).length;
-      document.getElementById('deleteCatModalText').textContent = `Delete ${itemCount} items in "${category}" from ${currentBranchName} or all branches?`;
+      console.log('Item count in category:', itemCount);
+      
+      const modalText = `Delete ${itemCount} items in "${category}" from ${currentBranchName} or all branches?`;
+      console.log('Modal text:', modalText);
+      
+      document.getElementById('deleteCatModalText').textContent = modalText;
       document.getElementById('deleteCatModal').classList.add('show');
+      console.log('Modal should now be visible');
     }
     
     async function confirmDeleteCat(scope) {
+      console.log('confirmDeleteCat called with scope:', scope);
+      console.log('pendingDeleteCategory:', pendingDeleteCategory);
+      
       closeModal('deleteCat');
       
       if (scope === 'current') {
         // Delete from current branch
+        console.log('Deleting from current branch:', currentBranch);
         const toDelete = Object.entries(allItems).filter(([id, item]) => item.category === pendingDeleteCategory);
+        console.log('Items to delete:', toDelete.length);
+        
         for (const [id, item] of toDelete) {
+          console.log('Deleting item:', id, item.name);
           await window.dbRemove(window.dbRef(window.db, `branches/${currentBranch}/items/${id}`));
         }
         alert(`Category "${pendingDeleteCategory}" deleted from ${currentBranchName}`);
       } else {
         // Delete from all branches
+        console.log('Deleting from all branches');
         for (const branchId of Object.keys(branches)) {
+          console.log('Processing branch:', branchId);
           const branchSnap = await window.dbGet(window.dbRef(window.db, `branches/${branchId}/items`));
           const branchItems = branchSnap.val() || {};
           const toDelete = Object.entries(branchItems).filter(([id, item]) => item.category === pendingDeleteCategory);
+          console.log(`Items to delete from ${branchId}:`, toDelete.length);
+          
           for (const [id, item] of toDelete) {
             await window.dbRemove(window.dbRef(window.db, `branches/${branchId}/items/${id}`));
           }
@@ -1425,6 +1449,7 @@
       }
       
       pendingDeleteCategory = null;
+      console.log('Reloading admin items...');
       loadAdminItems();
     }
     
