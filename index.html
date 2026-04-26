@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+  <title>Heebee Avail</title>
+  <link rel="manifest" href="manifest.json">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@200;300;400;600&family=Space+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html { font-size:115%; }
+    body {
+      font-family:'Nunito Sans',sans-serif; -webkit-font-smoothing:antialiased;
+      background:var(--bg); color:var(--text); overflow-x:hidden;
+      transition:background 0.55s cubic-bezier(0.4,0,0.2,1), color 0.55s cubic-bezier(0.4,0,0.2,1);
+    }
+    
+    /* Color tokens */
+    body.light {
+      --bg:#f5f5f7; --bg2:#ffffff;
+      --surface:rgba(255,255,255,0.75); --surface2:rgba(255,255,255,0.55);
+      --border:rgba(255,255,255,0.9); --border2:rgba(0,0,0,0.06);
+      --text:#1d1d1f; --text2:#424245; --text3:#86868b;
+      --shadow:0 4px 24px rgba(0,0,0,0.06); --shadow2:0 8px 40px rgba(0,0,0,0.10);
+      --check-bg:#1d1d1f; --check-fg:#ffffff;
+      --btn-bg:#1d1d1f; --btn-fg:#ffffff;
+      --sec-icon:#b8860b; --tab-active:#1d1d1f; --tab-afg:#ffffff;
+      --tab-wrap:rgba(255,255,255,0.65); --tab-idle:rgba(0,0,0,0.0); --tab-ifg:#86868b;
+      --ring-stroke:#f0c040; --input-bg:rgba(255,255,255,0.8); --input-bdr:rgba(0,0,0,0.1);
+      --rule:linear-gradient(to right,transparent,#b8860b,transparent);
+      --done-icon:#1d1d1f; --noise-op:0.035;
+      --na-bg:rgba(239,68,68,0.08); --na-border:rgba(239,68,68,0.2); --na-text:#dc2626;
+    }
+    body.dark {
+      --bg:#0a0a0f; --bg2:#111118;
+      --surface:rgba(255,255,255,0.06); --surface2:rgba(255,255,255,0.04);
+      --border:rgba(255,255,255,0.10); --border2:rgba(255,255,255,0.06);
+      --text:#f5f5f7; --text2:#d2d2d7; --text3:#86868b;
+      --shadow:0 4px 24px rgba(0,0,0,0.3); --shadow2:0 8px 40px rgba(0,0,0,0.5);
+      --check-bg:#f5f5f7; --check-fg:#0a0a0f;
+      --btn-bg:#f5f5f7; --btn-fg:#0a0a0f;
+      --sec-icon:#f0c040; --tab-active:#f5f5f7; --tab-afg:#0a0a0f;
+      --tab-wrap:rgba(255,255,255,0.06); --tab-idle:transparent; --tab-ifg:#86868b;
+      --ring-stroke:#93c5fd; --input-bg:rgba(255,255,255,0.07); --input-bdr:rgba(255,255,255,0.12);
+      --rule:linear-gradient(to right,transparent,rgba(147,197,253,0.5),transparent);
+      --done-icon:#f5f5f7; --noise-op:0.04;
+      --na-bg:rgba(239,68,68,0.12); --na-border:rgba(239,68,68,0.25); --na-text:#f87171;
+    }
+    
+    /* Ambient background */
+    .bg-layer { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+    .bg-orb {
+      position:absolute; border-radius:50%; filter:blur(90px);
+      animation:orbDrift ease-in-out infinite alternate;
+      transition:opacity 0.6s ease, background 0.6s ease;
+    }
+    body.light .orb1 { width:500px;height:500px;top:-80px;right:-80px;
+      background:radial-gradient(circle,#e8d5b0,transparent 70%);opacity:.5;animation-duration:14s; }
+    body.light .orb2 { width:400px;height:400px;bottom:-60px;left:-60px;
+      background:radial-gradient(circle,#d4c4a0,transparent 70%);opacity:.4;animation-duration:18s;animation-delay:5s; }
+    body.light .orb3 { width:280px;height:280px;top:45%;left:50%;
+      background:radial-gradient(circle,#ede8df,transparent 70%);opacity:.35;animation-duration:22s;animation-delay:10s; }
+    body.dark .orb1 { width:500px;height:500px;top:-80px;right:-80px;
+      background:radial-gradient(circle,#1a2a4a,transparent 70%);opacity:.7;animation-duration:14s; }
+    body.dark .orb2 { width:400px;height:400px;bottom:-60px;left:-60px;
+      background:radial-gradient(circle,#0d1a30,transparent 70%);opacity:.6;animation-duration:18s;animation-delay:5s; }
+    body.dark .orb3 { width:280px;height:280px;top:45%;left:50%;
+      background:radial-gradient(circle,#1c1c30,transparent 70%);opacity:.5;animation-duration:22s;animation-delay:10s; }
+    @keyframes orbDrift { 0%{transform:translate(0,0);} 100%{transform:translate(28px,18px);} }
+    
+    body::after {
+      content:''; position:fixed; inset:0; z-index:1; pointer-events:none;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+      opacity:var(--noise-op); transition:opacity 0.55s ease;
+    }
+    
+    /* Layout */
+    .app { position:relative; z-index:10; max-width:420px; margin:0 auto; padding:0 20px 80px; }
+    .hdr { padding:56px 0 32px; text-align:center; }
+    .hdr-eyebrow {
+      font-family:'Space Mono',monospace; font-size:.55rem; letter-spacing:5px; text-transform:uppercase;
+      color:var(--text3); margin-bottom:10px; transition:color 0.4s ease;
+    }
+    .hdr-name {
+      font-family:'Nunito Sans',sans-serif; font-weight:200; font-size:clamp(2.2rem,7vw,3rem);
+      color:var(--text); letter-spacing:8px; text-transform:uppercase; line-height:1;
+      transition:color 0.4s ease;
+    }
+    .hdr-rule {
+      width:40px; height:1px; background:var(--rule); margin:16px auto 0;
+      transition:background 0.4s ease;
+    }
+    
+    /* Screens */
+    .screen { display:none; }
+    .screen.active { display:block; animation:screenIn 0.5s cubic-bezier(0.4,0,0.2,1); }
+    @keyframes screenIn { from{opacity:0;transform:translateY(16px);} to{opacity:1;transform:translateY(0);} }
+    
+    /* Role cards on login */
+    .role-grid { display:grid; gap:14px; margin-bottom:24px; }
+    .role-card {
+      background:var(--surface); backdrop-filter:saturate(180%) blur(20px);
+      -webkit-backdrop-filter:saturate(180%) blur(20px); border:1px solid var(--border);
+      border-radius:22px; padding:32px 24px; text-align:center; cursor:pointer;
+      box-shadow:var(--shadow); transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+    .role-card:hover { box-shadow:var(--shadow2); transform:translateY(-4px); }
+    .role-card:active { transform:translateY(-2px); }
+    .role-icon { font-size:2.4rem; margin-bottom:16px; display:block; }
+    .role-name {
+      font-family:'Space Mono',monospace; font-size:.7rem; letter-spacing:3px;
+      text-transform:uppercase; color:var(--text); font-weight:400; transition:color 0.4s ease;
+    }
+    
+    /* PIN input */
+    .pin-wrap { display:none; }
+    .pin-wrap.show { display:block; animation:screenIn 0.4s ease; }
+    .pin-label {
+      font-family:'Space Mono',monospace; font-size:.6rem; letter-spacing:3px;
+      text-transform:uppercase; color:var(--text3); text-align:center; margin-bottom:16px;
+    }
+    .pin-input {
+      display:flex; gap:12px; justify-content:center; margin-bottom:20px;
+    }
+    .pin-digit {
+      width:52px; height:62px; font-size:2rem; text-align:center;
+      background:var(--input-bg); border:1px solid var(--input-bdr); border-radius:14px;
+      color:var(--text); font-family:'Space Mono',monospace; outline:none;
+      -webkit-appearance:none; transition:border 0.2s, background 0.2s;
+    }
+    .pin-digit:focus { border-color:#b8860b; box-shadow:0 0 0 3px rgba(184,134,11,.12); }
+    .pin-error {
+      text-align:center; color:#ef4444; font-size:.75rem; margin-top:12px;
+      display:none; animation:shake 0.4s ease;
+    }
+    @keyframes shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-8px);} 75%{transform:translateX(8px);} }
+    .pin-back {
+      display:block; margin:0 auto; padding:10px 26px; border-radius:30px;
+      border:1px solid var(--input-bdr); background:transparent; color:var(--text3);
+      font-family:'Space Mono',monospace; font-size:.58rem; letter-spacing:3px;
+      cursor:pointer; text-transform:uppercase; transition:border-color 0.2s, color 0.2s;
+    }
+    .pin-back:hover { border-color:var(--text3); color:var(--text2); }
+    
+    /* Theme toggle */
+    .theme-toggle {
+      position:fixed; top:20px; right:20px; z-index:100;
+      width:40px; height:40px; border-radius:50%; border:1px solid var(--border);
+      background:var(--surface); backdrop-filter:saturate(180%) blur(20px);
+      -webkit-backdrop-filter:saturate(180%) blur(20px);
+      display:flex; align-items:center; justify-content:center; cursor:pointer;
+      font-size:1.1rem; transition:all 0.3s ease; box-shadow:var(--shadow);
+    }
+    .theme-toggle:hover { box-shadow:var(--shadow2); transform:scale(1.05); }
+    
+    /* Search bar */
+    .search-bar {
+      margin-bottom:16px; position:relative;
+    }
+    .search-input {
+      width:100%; padding:14px 18px 14px 46px; border-radius:16px;
+      background:var(--input-bg); border:1px solid var(--input-bdr);
+      color:var(--text); font-size:.875rem; font-family:'Nunito Sans',sans-serif;
+      outline:none; -webkit-appearance:none; transition:border 0.2s, background 0.2s;
+    }
+    .search-input:focus { border-color:#b8860b; box-shadow:0 0 0 3px rgba(184,134,11,.12); }
+    .search-input::placeholder { color:var(--text3); }
+    .search-icon {
+      position:absolute; left:16px; top:50%; transform:translateY(-50%);
+      font-size:1.1rem; color:var(--text3); pointer-events:none;
+    }
+    
+    /* Glass card */
+    .glass-card {
+      background:var(--surface); backdrop-filter:saturate(180%) blur(20px);
+      -webkit-backdrop-filter:saturate(180%) blur(20px); border:1px solid var(--border);
+      border-radius:22px; box-shadow:var(--shadow); margin-bottom:12px;
+      transition:background 0.5s ease, border-color 0.5s ease, box-shadow 0.3s ease;
+    }
+    .glass-card:hover { box-shadow:var(--shadow2); }
+    
+    /* Category section */
+    .cat-head {
+      padding:16px 20px 14px; display:flex; align-items:center; gap:12px;
+      border-bottom:1px solid var(--border2); transition:border-color 0.4s ease;
+    }
+    .cat-icon {
+      font-size:.9rem; color:var(--sec-icon); font-family:'Space Mono',monospace;
+      width:20px; text-align:center; transition:color 0.4s ease;
+    }
+    .cat-name {
+      font-family:'Space Mono',monospace; font-size:.6rem; font-weight:400;
+      letter-spacing:3px; text-transform:uppercase; color:var(--text2); flex:1;
+      transition:color 0.4s ease;
+    }
+    .cat-count {
+      font-family:'Space Mono',monospace; font-size:.55rem; color:var(--text3);
+      letter-spacing:1px; background:var(--surface2); padding:3px 9px; border-radius:20px;
+      transition:all 0.4s ease;
+    }
+    
+    /* Item row */
+    .item-list { padding:4px; }
+    .item-row {
+      display:flex; align-items:center; gap:14px; padding:14px 16px;
+      border-bottom:1px solid var(--border2); transition:all 0.3s ease;
+    }
+    .item-row:last-child { border-bottom:none; }
+    .item-row.na { opacity:.5; }
+    .item-name {
+      flex:1; font-size:.875rem; font-weight:400; color:var(--text);
+      letter-spacing:.1px; transition:color 0.4s ease;
+    }
+    
+    /* iOS-style toggle */
+    .toggle {
+      position:relative; width:52px; height:30px; flex-shrink:0;
+      background:var(--input-bdr); border-radius:15px; cursor:pointer;
+      transition:background 0.3s ease;
+    }
+    .toggle.on { background:#34d399; }
+    .toggle-knob {
+      position:absolute; top:3px; left:3px; width:24px; height:24px;
+      background:#ffffff; border-radius:50%; transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
+      box-shadow:0 2px 4px rgba(0,0,0,0.2);
+    }
+    .toggle.on .toggle-knob { transform:translateX(22px); }
+    
+    /* N/A card for barista view */
+    .na-card {
+      background:var(--na-bg); border:1px solid var(--na-border);
+      border-radius:16px; padding:18px 20px; margin-bottom:10px;
+      animation:slideIn 0.4s cubic-bezier(0.4,0,0.2,1);
+    }
+    @keyframes slideIn { from{opacity:0;transform:translateX(-20px);} to{opacity:1;transform:translateX(0);} }
+    .na-cat {
+      font-family:'Space Mono',monospace; font-size:.52rem; letter-spacing:3px;
+      text-transform:uppercase; color:var(--na-text); opacity:.6; margin-bottom:6px;
+    }
+    .na-name {
+      font-size:.95rem; font-weight:400; color:var(--na-text); letter-spacing:.2px;
+    }
+    
+    /* Empty state */
+    .empty-state {
+      text-align:center; padding:80px 20px;
+    }
+    .empty-icon {
+      font-size:3.5rem; margin-bottom:20px; display:block; opacity:.3;
+      animation:pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:.3;} 50%{opacity:.5;} }
+    .empty-title {
+      font-family:'Nunito Sans',sans-serif; font-weight:200; font-size:1.6rem;
+      letter-spacing:2px; color:var(--text); margin-bottom:8px; transition:color 0.4s ease;
+    }
+    .empty-msg {
+      font-size:.85rem; color:var(--text3); font-style:italic; transition:color 0.4s ease;
+    }
+    
+    /* Top bar */
+    .top-bar {
+      display:flex; align-items:center; justify-content:space-between; margin-bottom:24px;
+    }
+    .top-title {
+      font-family:'Space Mono',monospace; font-size:.65rem; letter-spacing:3px;
+      text-transform:uppercase; color:var(--text2); transition:color 0.4s ease;
+    }
+    .logout-btn {
+      padding:8px 18px; border-radius:20px; border:1px solid var(--input-bdr);
+      background:transparent; color:var(--text3); font-family:'Space Mono',monospace;
+      font-size:.55rem; letter-spacing:2px; cursor:pointer; text-transform:uppercase;
+      transition:border-color 0.2s, color 0.2s;
+    }
+    .logout-btn:hover { border-color:var(--text3); color:var(--text2); }
+    
+    /* Button */
+    .btn {
+      display:flex; align-items:center; justify-content:center; gap:8px;
+      width:100%; padding:17px; border-radius:22px; border:none;
+      font-family:'Nunito Sans',sans-serif; font-weight:600; font-size:.82rem;
+      letter-spacing:2px; text-transform:uppercase; cursor:pointer;
+      background:var(--btn-bg); color:var(--btn-fg); box-shadow:0 4px 20px rgba(0,0,0,0.12);
+      transition:all 0.3s ease;
+    }
+    .btn:hover { transform:translateY(-2px); box-shadow:0 8px 30px rgba(0,0,0,0.2); }
+    .btn:active { transform:translateY(0); }
+    .btn:disabled { opacity:.4; cursor:not-allowed; transform:none; }
+    
+    /* Admin panel */
+    .admin-tabs {
+      display:flex; gap:6px; background:var(--tab-wrap);
+      backdrop-filter:saturate(180%) blur(20px); -webkit-backdrop-filter:saturate(180%) blur(20px);
+      border:1px solid var(--border); border-radius:60px; padding:5px;
+      box-shadow:var(--shadow); margin-bottom:24px; transition:all 0.55s ease;
+    }
+    .admin-tab {
+      flex:1; padding:13px 18px; border:none; border-radius:55px; cursor:pointer;
+      font-family:'Nunito Sans',sans-serif; font-weight:600; font-size:.82rem; letter-spacing:.5px;
+      background:var(--tab-idle); color:var(--tab-ifg);
+      transition:all 0.4s cubic-bezier(0.4,0,0.2,1);
+    }
+    .admin-tab:active { transform:scale(0.97); }
+    .admin-tab.active { background:var(--tab-active); color:var(--tab-afg); box-shadow:0 2px 14px rgba(0,0,0,0.15); }
+    
+    .admin-panel { display:none; }
+    .admin-panel.active { display:block; animation:screenIn 0.4s ease; }
+    
+    .form-group { margin-bottom:16px; }
+    .form-label {
+      display:block; font-family:'Space Mono',monospace; font-size:.5rem;
+      letter-spacing:3px; text-transform:uppercase; color:var(--text3); margin-bottom:8px;
+      transition:color 0.4s ease;
+    }
+    .form-input, .form-select {
+      width:100%; background:var(--input-bg); border:1px solid var(--input-bdr);
+      border-radius:12px; padding:12px 14px; color:var(--text); font-size:.875rem;
+      font-family:'Nunito Sans',sans-serif; outline:none; -webkit-appearance:none;
+      transition:border 0.2s, background 0.2s;
+    }
+    .form-input:focus, .form-select:focus {
+      border-color:#b8860b; box-shadow:0 0 0 3px rgba(184,134,11,.12);
+    }
+    .form-select option { background:var(--bg2); color:var(--text); }
+    
+    .item-edit-row {
+      display:flex; align-items:center; gap:10px; padding:12px 14px;
+      border-bottom:1px solid var(--border2); transition:all 0.3s ease;
+    }
+    .item-edit-row:hover { background:var(--surface2); }
+    .item-edit-name { flex:1; font-size:.875rem; color:var(--text); transition:color 0.4s ease; }
+    .item-edit-cat {
+      font-family:'Space Mono',monospace; font-size:.52rem; letter-spacing:2px;
+      text-transform:uppercase; color:var(--text3); padding:2px 8px; border-radius:12px;
+      background:var(--surface2); transition:all 0.4s ease;
+    }
+    .item-del-btn {
+      padding:6px 12px; border-radius:16px; border:1px solid rgba(239,68,68,0.3);
+      background:rgba(239,68,68,0.08); color:#ef4444; font-size:.65rem;
+      cursor:pointer; font-family:'Space Mono',monospace; letter-spacing:1px;
+      transition:all 0.2s ease;
+    }
+    .item-del-btn:hover { background:rgba(239,68,68,0.15); border-color:rgba(239,68,68,0.5); }
+    
+    /* Scrollbar */
+    ::-webkit-scrollbar { width:3px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:var(--input-bdr); border-radius:2px; }
+  </style>
+</head>
+<body class="light">
+  <div class="bg-layer">
+    <div class="bg-orb orb1"></div>
+    <div class="bg-orb orb2"></div>
+    <div class="bg-orb orb3"></div>
+  </div>
+  
+  <div class="theme-toggle" onclick="toggleTheme()">
+    <span id="themeIcon">☀️</span>
+  </div>
+  
+  <div class="app">
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen" class="screen active">
+      <div class="hdr">
+        <div class="hdr-eyebrow">Kitchen Display</div>
+        <div class="hdr-name">Heebee Avail</div>
+        <div class="hdr-rule"></div>
+      </div>
+      
+      <div class="role-grid" id="roleGrid">
+        <div class="role-card" onclick="selectRole('kitchen')">
+          <span class="role-icon">👨‍🍳</span>
+          <div class="role-name">Kitchen</div>
+        </div>
+        <div class="role-card" onclick="selectRole('barista')">
+          <span class="role-icon">☕</span>
+          <div class="role-name">Barista</div>
+        </div>
+        <div class="role-card" onclick="selectRole('admin')">
+          <span class="role-icon">⚙️</span>
+          <div class="role-name">Admin</div>
+        </div>
+      </div>
+      
+      <div class="pin-wrap" id="pinWrap">
+        <div class="pin-label" id="pinLabel">Enter PIN</div>
+        <div class="pin-input">
+          <input type="tel" maxlength="1" class="pin-digit" id="p1" oninput="pinNext(this,1)">
+          <input type="tel" maxlength="1" class="pin-digit" id="p2" oninput="pinNext(this,2)">
+          <input type="tel" maxlength="1" class="pin-digit" id="p3" oninput="pinNext(this,3)">
+          <input type="tel" maxlength="1" class="pin-digit" id="p4" oninput="pinNext(this,4)">
+        </div>
+        <div class="pin-error" id="pinError">Incorrect PIN</div>
+        <button class="pin-back" onclick="backToRoles()">← Back</button>
+      </div>
+    </div>
+    
+    <!-- KITCHEN SCREEN -->
+    <div id="kitchenScreen" class="screen">
+      <div class="hdr">
+        <div class="hdr-eyebrow">Kitchen Control</div>
+        <div class="hdr-name">Item Availability</div>
+        <div class="hdr-rule"></div>
+      </div>
+      
+      <div class="top-bar">
+        <div class="top-title" id="kitchenStatus">Loading...</div>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </div>
+      
+      <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="search-input" placeholder="Search items..." id="kitchenSearch" oninput="filterKitchen()">
+      </div>
+      
+      <div id="kitchenList"></div>
+    </div>
+    
+    <!-- BARISTA SCREEN -->
+    <div id="baristaScreen" class="screen">
+      <div class="hdr">
+        <div class="hdr-eyebrow">Front Display</div>
+        <div class="hdr-name">Unavailable Items</div>
+        <div class="hdr-rule"></div>
+      </div>
+      
+      <div class="top-bar">
+        <div class="top-title" id="baristaStatus">Loading...</div>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </div>
+      
+      <div id="baristaList"></div>
+    </div>
+    
+    <!-- ADMIN SCREEN -->
+    <div id="adminScreen" class="screen">
+      <div class="hdr">
+        <div class="hdr-eyebrow">Admin Panel</div>
+        <div class="hdr-name">Manage Items</div>
+        <div class="hdr-rule"></div>
+      </div>
+      
+      <div class="top-bar">
+        <div class="top-title">Admin Control</div>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </div>
+      
+      <div class="admin-tabs">
+        <button class="admin-tab active" onclick="switchAdminTab('add')">Add Item</button>
+        <button class="admin-tab" onclick="switchAdminTab('manage')">Manage</button>
+      </div>
+      
+      <div id="adminAddPanel" class="admin-panel active">
+        <div class="glass-card" style="padding:24px;">
+          <div class="form-group">
+            <label class="form-label">Item Name</label>
+            <input type="text" class="form-input" id="newItemName" placeholder="e.g., Cappuccino">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <input type="text" class="form-input" id="newItemCat" placeholder="e.g., Coffee">
+          </div>
+          <button class="btn" onclick="addItem()">Add Item</button>
+        </div>
+      </div>
+      
+      <div id="adminManagePanel" class="admin-panel">
+        <div class="glass-card" id="adminItemList"></div>
+      </div>
+    </div>
+  </div>
+  
+  <script type="module">
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyDTSLI5Q1VK1RDiWqoRh4eFH3hh0iZymBQ",
+      authDomain: "heebee-avail.firebaseapp.com",
+      databaseURL: "https://heebee-avail-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "heebee-avail",
+      storageBucket: "heebee-avail.firebasestorage.app",
+      messagingSenderId: "392385259259255",
+      appId: "1:392385259255:web:1748e8bb5039418b23d5f2"
+    };
+    
+    // Import Firebase
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getDatabase, ref, set, get, update, remove, onValue } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
+    
+    // Initialize
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    window.db = db;
+    window.dbRef = ref;
+    window.dbGet = get;
+    window.dbSet = set;
+    window.dbUpdate = update;
+    window.dbRemove = remove;
+    window.dbOnValue = onValue;
+    
+    // Initialize default PINs if not set
+    get(ref(db, 'config')).then(snap => {
+      if (!snap.exists()) {
+        set(ref(db, 'config'), {
+          kitchenPin: '1234',
+          baristaPin: '5678',
+          adminPin: '9999'
+        });
+      }
+    });
+    
+    // Load items
+    window.loadKitchen = loadKitchen;
+    window.loadBarista = loadBarista;
+    window.loadAdmin = loadAdmin;
+  </script>
+  
+  <script>
+    let currentRole = null;
+    let selectedRole = null;
+    let allItems = {};
+    
+    // Theme
+    function toggleTheme() {
+      const curr = document.body.classList.contains('light') ? 'dark' : 'light';
+      document.body.className = curr;
+      document.getElementById('themeIcon').textContent = curr === 'light' ? '☀️' : '🌙';
+      localStorage.setItem('hb_avail_theme', curr);
+    }
+    
+    // Load saved theme
+    const saved = localStorage.getItem('hb_avail_theme') || 'light';
+    document.body.className = saved;
+    document.getElementById('themeIcon').textContent = saved === 'light' ? '☀️' : '🌙';
+    
+    // Role selection
+    function selectRole(role) {
+      selectedRole = role;
+      document.getElementById('roleGrid').style.display = 'none';
+      document.getElementById('pinWrap').classList.add('show');
+      document.getElementById('pinLabel').textContent = `${role.toUpperCase()} PIN`;
+      document.getElementById('p1').focus();
+    }
+    
+    function backToRoles() {
+      selectedRole = null;
+      document.getElementById('roleGrid').style.display = 'grid';
+      document.getElementById('pinWrap').classList.remove('show');
+      document.getElementById('pinError').style.display = 'none';
+      clearPin();
+    }
+    
+    function pinNext(el, pos) {
+      if (el.value.length === 1 && pos < 4) {
+        document.getElementById('p' + (pos + 1)).focus();
+      }
+      if (pos === 4 && el.value.length === 1) {
+        checkPin();
+      }
+    }
+    
+    function clearPin() {
+      for (let i = 1; i <= 4; i++) {
+        document.getElementById('p' + i).value = '';
+      }
+    }
+    
+    async function checkPin() {
+      const pin = ['p1','p2','p3','p4'].map(id => document.getElementById(id).value).join('');
+      const configSnap = await window.dbGet(window.dbRef(window.db, 'config'));
+      const config = configSnap.val();
+      
+      let valid = false;
+      if (selectedRole === 'kitchen' && pin === config.kitchenPin) valid = true;
+      if (selectedRole === 'barista' && pin === config.baristaPin) valid = true;
+      if (selectedRole === 'admin' && pin === config.adminPin) valid = true;
+      
+      if (valid) {
+        currentRole = selectedRole;
+        document.getElementById('loginScreen').classList.remove('active');
+        document.getElementById(selectedRole + 'Screen').classList.add('active');
+        
+        if (selectedRole === 'kitchen') loadKitchen();
+        if (selectedRole === 'barista') loadBarista();
+        if (selectedRole === 'admin') loadAdmin();
+      } else {
+        document.getElementById('pinError').style.display = 'block';
+        setTimeout(() => {
+          document.getElementById('pinError').style.display = 'none';
+          clearPin();
+          document.getElementById('p1').focus();
+        }, 1500);
+      }
+    }
+    
+    function logout() {
+      currentRole = null;
+      document.getElementById('kitchenScreen').classList.remove('active');
+      document.getElementById('baristaScreen').classList.remove('active');
+      document.getElementById('adminScreen').classList.remove('active');
+      document.getElementById('loginScreen').classList.add('active');
+      backToRoles();
+    }
+    
+    // Kitchen view
+    async function loadKitchen() {
+      const itemsSnap = await window.dbGet(window.dbRef(window.db, 'items'));
+      allItems = itemsSnap.val() || {};
+      renderKitchen();
+      
+      // Real-time updates
+      window.dbOnValue(window.dbRef(window.db, 'items'), snap => {
+        allItems = snap.val() || {};
+        renderKitchen();
+      });
+    }
+    
+    function renderKitchen() {
+      const search = document.getElementById('kitchenSearch').value.toLowerCase();
+      const grouped = {};
+      
+      Object.entries(allItems).forEach(([id, item]) => {
+        if (search && !item.name.toLowerCase().includes(search)) return;
+        if (!grouped[item.category]) grouped[item.category] = [];
+        grouped[item.category].push({id, ...item});
+      });
+      
+      const naCount = Object.values(allItems).filter(i => !i.available).length;
+      document.getElementById('kitchenStatus').textContent = `${naCount} item${naCount !== 1 ? 's' : ''} currently N/A`;
+      
+      let html = '';
+      Object.entries(grouped).sort().forEach(([cat, items]) => {
+        const naInCat = items.filter(i => !i.available).length;
+        html += `
+          <div class="glass-card">
+            <div class="cat-head">
+              <span class="cat-icon">◈</span>
+              <span class="cat-name">${cat}</span>
+              <span class="cat-count">${naInCat} / ${items.length}</span>
+            </div>
+            <div class="item-list">
+              ${items.sort((a,b) => a.name.localeCompare(b.name)).map(item => `
+                <div class="item-row ${item.available ? '' : 'na'}">
+                  <div class="item-name">${item.name}</div>
+                  <div class="toggle ${item.available ? 'on' : ''}" onclick="toggleItem('${item.id}')">
+                    <div class="toggle-knob"></div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      });
+      
+      document.getElementById('kitchenList').innerHTML = html || '<div class="empty-state"><span class="empty-icon">📦</span><div class="empty-title">No Items</div><div class="empty-msg">Add items from Admin panel</div></div>';
+    }
+    
+    function filterKitchen() {
+      renderKitchen();
+    }
+    
+    async function toggleItem(id) {
+      const item = allItems[id];
+      await window.dbUpdate(window.dbRef(window.db, `items/${id}`), {
+        available: !item.available
+      });
+    }
+    
+    // Barista view
+    async function loadBarista() {
+      const itemsSnap = await window.dbGet(window.dbRef(window.db, 'items'));
+      allItems = itemsSnap.val() || {};
+      renderBarista();
+      
+      // Real-time updates
+      window.dbOnValue(window.dbRef(window.db, 'items'), snap => {
+        allItems = snap.val() || {};
+        renderBarista();
+      });
+    }
+    
+    function renderBarista() {
+      const naItems = Object.entries(allItems).filter(([id, item]) => !item.available);
+      
+      document.getElementById('baristaStatus').textContent = `${naItems.length} item${naItems.length !== 1 ? 's' : ''} unavailable`;
+      
+      if (naItems.length === 0) {
+        document.getElementById('baristaList').innerHTML = `
+          <div class="empty-state">
+            <span class="empty-icon">✦</span>
+            <div class="empty-title">All Items Available</div>
+            <div class="empty-msg">Everything is ready to serve</div>
+          </div>
+        `;
+        return;
+      }
+      
+      const grouped = {};
+      naItems.forEach(([id, item]) => {
+        if (!grouped[item.category]) grouped[item.category] = [];
+        grouped[item.category].push(item);
+      });
+      
+      let html = '';
+      Object.entries(grouped).sort().forEach(([cat, items]) => {
+        items.sort((a,b) => a.name.localeCompare(b.name)).forEach(item => {
+          html += `
+            <div class="na-card">
+              <div class="na-cat">${cat}</div>
+              <div class="na-name">${item.name}</div>
+            </div>
+          `;
+        });
+      });
+      
+      document.getElementById('baristaList').innerHTML = html;
+    }
+    
+    // Admin panel
+    let currentAdminTab = 'add';
+    
+    function switchAdminTab(tab) {
+      currentAdminTab = tab;
+      document.querySelectorAll('.admin-tab').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.admin-panel').forEach(el => el.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById(`admin${tab.charAt(0).toUpperCase() + tab.slice(1)}Panel`).classList.add('active');
+      
+      if (tab === 'manage') loadAdminItems();
+    }
+    
+    async function loadAdmin() {
+      const itemsSnap = await window.dbGet(window.dbRef(window.db, 'items'));
+      allItems = itemsSnap.val() || {};
+    }
+    
+    async function addItem() {
+      const name = document.getElementById('newItemName').value.trim();
+      const cat = document.getElementById('newItemCat').value.trim();
+      
+      if (!name || !cat) {
+        alert('Please fill in both fields');
+        return;
+      }
+      
+      const id = 'item_' + Date.now();
+      await window.dbSet(window.dbRef(window.db, `items/${id}`), {
+        name,
+        category: cat,
+        available: true
+      });
+      
+      document.getElementById('newItemName').value = '';
+      document.getElementById('newItemCat').value = '';
+      alert('Item added successfully');
+    }
+    
+    async function loadAdminItems() {
+      const itemsSnap = await window.dbGet(window.dbRef(window.db, 'items'));
+      allItems = itemsSnap.val() || {};
+      
+      const sorted = Object.entries(allItems).sort((a,b) => a[1].name.localeCompare(b[1].name));
+      
+      let html = '<div style="padding:4px;">';
+      sorted.forEach(([id, item]) => {
+        html += `
+          <div class="item-edit-row">
+            <div class="item-edit-name">${item.name}</div>
+            <div class="item-edit-cat">${item.category}</div>
+            <button class="item-del-btn" onclick="deleteItem('${id}')">Delete</button>
+          </div>
+        `;
+      });
+      html += '</div>';
+      
+      document.getElementById('adminItemList').innerHTML = html || '<div style="padding:40px;text-align:center;color:var(--text3);">No items yet</div>';
+    }
+    
+    async function deleteItem(id) {
+      if (!confirm('Delete this item?')) return;
+      await window.dbRemove(window.dbRef(window.db, `items/${id}`));
+      loadAdminItems();
+    }
+    
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js');
+    }
+  </script>
+</body>
+</html>
