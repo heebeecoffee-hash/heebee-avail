@@ -1128,6 +1128,7 @@
     }
     
     async function confirmImport(scope) {
+      console.log('confirmImport called with scope:', scope);
       closeModal('import');
       
       const btn = document.getElementById('importBtn');
@@ -1135,44 +1136,57 @@
       const progressText = document.getElementById('importProgressText');
       const progressBar = document.getElementById('importProgressBar');
       
+      console.log('Progress elements:', { btn, progressDiv, progressText, progressBar });
+      
+      if (!btn || !progressDiv || !progressText || !progressBar) {
+        alert('Error: Progress elements not found. Please refresh and try again.');
+        return;
+      }
+      
       btn.style.display = 'none';
       progressDiv.style.display = 'block';
       progressBar.style.width = '0%';
       
-      if (scope === 'current') {
-        // If logged in with "all_branches", use the currently selected branch from admin dropdown
-        const targetBranch = currentBranch === 'all_branches' 
-          ? document.getElementById('adminBranchSelect').value 
-          : currentBranch;
-        const targetBranchName = branches[targetBranch];
-        
-        // Import to current/selected branch only
-        let count = 0;
-        const total = pendingImportData.length;
-        
-        for (const row of pendingImportData) {
-          const name = (row.Product || row.product || row.Item || row.item || '').trim();
-          const cat = (row.Category || row.category || row['Category '] || '').trim();
+      try {
+        if (scope === 'current') {
+          // If logged in with "all_branches", use the currently selected branch from admin dropdown
+          const targetBranch = currentBranch === 'all_branches' 
+            ? document.getElementById('adminBranchSelect').value 
+            : currentBranch;
+          const targetBranchName = branches[targetBranch];
           
-          if (!name || !cat) continue;
+          console.log('Importing to branch:', targetBranch, targetBranchName);
           
-          const id = 'item_' + Date.now() + '_' + count;
-          await window.dbSet(window.dbRef(window.db, `branches/${targetBranch}/items/${id}`), {
-            name,
-            category: cat,
-            available: true,
-            unavailableSince: null
-          });
-          count++;
+          // Import to current/selected branch only
+          let count = 0;
+          const total = pendingImportData.length;
           
-          const percent = Math.round((count / total) * 100);
-          progressBar.style.width = percent + '%';
-          progressText.textContent = `Importing to ${targetBranchName}... ${count} of ${total}`;
-        }
-        progressText.textContent = `✓ Imported ${count} items to ${targetBranchName}`;
-        progressBar.style.width = '100%';
-      } else {
+          for (const row of pendingImportData) {
+            const name = (row.Product || row.product || row.Item || row.item || '').trim();
+            const cat = (row.Category || row.category || row['Category '] || '').trim();
+            
+            if (!name || !cat) continue;
+            
+            const id = 'item_' + Date.now() + '_' + count;
+            await window.dbSet(window.dbRef(window.db, `branches/${targetBranch}/items/${id}`), {
+              name,
+              category: cat,
+              available: true,
+              unavailableSince: null
+            });
+            count++;
+            
+            const percent = Math.round((count / total) * 100);
+            progressBar.style.width = percent + '%';
+            progressText.textContent = `Importing to ${targetBranchName}... ${count} of ${total}`;
+            
+            console.log(`Imported ${count}/${total}: ${name}`);
+          }
+          progressText.textContent = `✓ Imported ${count} items to ${targetBranchName}`;
+          progressBar.style.width = '100%';
+        } else {
         // Import to all branches
+        console.log('Importing to all branches');
         let totalCount = 0;
         const itemsPerBranch = pendingImportData.filter(row => {
           const name = (row.Product || row.product || row.Item || row.item || '').trim();
@@ -1180,6 +1194,8 @@
           return name && cat;
         }).length;
         const totalItems = itemsPerBranch * Object.keys(branches).length;
+        
+        console.log(`Will import ${itemsPerBranch} items to ${Object.keys(branches).length} branches = ${totalItems} total`);
         
         for (const branchId of Object.keys(branches)) {
           let count = 0;
@@ -1202,11 +1218,17 @@
             const percent = Math.round((totalCount / totalItems) * 100);
             progressBar.style.width = percent + '%';
             progressText.textContent = `Importing to all branches... ${totalCount} of ${totalItems}`;
+            
+            if (totalCount % 10 === 0) {
+              console.log(`Progress: ${totalCount}/${totalItems}`);
+            }
           }
         }
         progressText.textContent = `✓ Imported ${itemsPerBranch} items to all branches`;
         progressBar.style.width = '100%';
       }
+      
+      console.log('Import complete, showing success message');
       
       setTimeout(() => {
         progressDiv.style.display = 'none';
@@ -1219,7 +1241,13 @@
         progressBar.style.width = '0%';
         alert('Import complete!');
       }, 2000);
+    } catch (error) {
+      console.error('Import error:', error);
+      alert('Import failed: ' + error.message + '. Check console for details.');
+      progressDiv.style.display = 'none';
+      btn.style.display = 'flex';
     }
+  }
     
     function closeModal(type) {
       document.getElementById(type + 'Modal').classList.remove('show');
