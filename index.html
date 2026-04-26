@@ -797,9 +797,10 @@
       const config = configSnap.val();
       
       let valid = false;
-      if (selectedRole === 'kitchen' && pin === config.kitchenPin) valid = true;
-      if (selectedRole === 'pos' && pin === config.posPin) valid = true;
-      if (selectedRole === 'admin' && pin === config.adminPin) valid = true;
+      if (selectedRole === 'kitchen' && pin === String(config.kitchenPin)) valid = true;
+      // Handle both posPin (new) and baristaPin (legacy), convert to string for comparison
+      if (selectedRole === 'pos' && (pin === String(config.posPin) || pin === String(config.baristaPin))) valid = true;
+      if (selectedRole === 'admin' && pin === String(config.adminPin)) valid = true;
       
       if (valid) {
         currentRole = selectedRole;
@@ -1117,7 +1118,12 @@
       if (!excelData.length) return;
       
       pendingImportData = excelData;
-      document.getElementById('importModalText').textContent = `Import ${excelData.length} items to ${currentBranchName} or all branches?`;
+      
+      const displayBranch = currentBranch === 'all_branches' 
+        ? 'current branch' 
+        : currentBranchName;
+      
+      document.getElementById('importModalText').textContent = `Import ${excelData.length} items to ${displayBranch} or all branches?`;
       document.getElementById('importModal').classList.add('show');
     }
     
@@ -1134,7 +1140,13 @@
       progressBar.style.width = '0%';
       
       if (scope === 'current') {
-        // Import to current branch only
+        // If logged in with "all_branches", use the currently selected branch from admin dropdown
+        const targetBranch = currentBranch === 'all_branches' 
+          ? document.getElementById('adminBranchSelect').value 
+          : currentBranch;
+        const targetBranchName = branches[targetBranch];
+        
+        // Import to current/selected branch only
         let count = 0;
         const total = pendingImportData.length;
         
@@ -1145,7 +1157,7 @@
           if (!name || !cat) continue;
           
           const id = 'item_' + Date.now() + '_' + count;
-          await window.dbSet(window.dbRef(window.db, `branches/${currentBranch}/items/${id}`), {
+          await window.dbSet(window.dbRef(window.db, `branches/${targetBranch}/items/${id}`), {
             name,
             category: cat,
             available: true,
@@ -1155,9 +1167,9 @@
           
           const percent = Math.round((count / total) * 100);
           progressBar.style.width = percent + '%';
-          progressText.textContent = `Importing to ${currentBranchName}... ${count} of ${total}`;
+          progressText.textContent = `Importing to ${targetBranchName}... ${count} of ${total}`;
         }
-        progressText.textContent = `✓ Imported ${count} items to ${currentBranchName}`;
+        progressText.textContent = `✓ Imported ${count} items to ${targetBranchName}`;
         progressBar.style.width = '100%';
       } else {
         // Import to all branches
@@ -1217,9 +1229,32 @@
     }
     
     async function loadAdmin() {
-      document.getElementById('adminBranchSelect').value = currentBranch;
-      const itemsSnap = await window.dbGet(window.dbRef(window.db, `branches/${currentBranch}/items`));
-      allItems = itemsSnap.val() || {};
+      const adminBranchSelect = document.getElementById('adminBranchSelect');
+      
+      // Remove existing "All Branches" option if present
+      Array.from(adminBranchSelect.options).forEach(option => {
+        if (option.value === 'all_branches') {
+          adminBranchSelect.removeChild(option);
+        }
+      });
+      
+      // Add "All Branches" option if user logged in with it
+      if (currentBranch === 'all_branches') {
+        const option = document.createElement('option');
+        option.value = 'all_branches';
+        option.textContent = 'All Branches';
+        adminBranchSelect.appendChild(option);
+        adminBranchSelect.value = 'all_branches';
+        
+        // Load first branch's items for display
+        const firstBranch = Object.keys(branches)[0];
+        const itemsSnap = await window.dbGet(window.dbRef(window.db, `branches/${firstBranch}/items`));
+        allItems = itemsSnap.val() || {};
+      } else {
+        adminBranchSelect.value = currentBranch;
+        const itemsSnap = await window.dbGet(window.dbRef(window.db, `branches/${currentBranch}/items`));
+        allItems = itemsSnap.val() || {};
+      }
     }
     
     function switchAdminBranch() {
