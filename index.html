@@ -593,6 +593,30 @@
     </div>
   </div>
   
+  <div id="duplicateModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">Duplicate Check</div>
+      <div class="modal-text" id="duplicateModalText" style="line-height:1.6;margin-bottom:20px;">
+        Found duplicates in your import file.
+      </div>
+      <div class="modal-actions" style="flex-direction:column;gap:12px;">
+        <button class="modal-btn modal-btn-primary" onclick="handleDuplicates('skip')" style="width:100%;">
+          <div style="font-weight:600;">Skip Duplicates</div>
+          <div style="font-size:.7rem;opacity:0.8;margin-top:4px;" id="skipText">Only add new items</div>
+        </button>
+        <button class="modal-btn modal-btn-primary" onclick="handleDuplicates('replace')" style="width:100%;">
+          <div style="font-weight:600;">Replace Duplicates</div>
+          <div style="font-size:.7rem;opacity:0.8;margin-top:4px;" id="replaceText">Update existing items</div>
+        </button>
+        <button class="modal-btn modal-btn-secondary" onclick="handleDuplicates('keep')" style="width:100%;">
+          <div style="font-weight:600;">Keep Both</div>
+          <div style="font-size:.7rem;opacity:0.8;margin-top:4px;">Add all (creates duplicates)</div>
+        </button>
+        <button class="modal-btn modal-btn-secondary" onclick="closeModal('duplicate')" style="width:100%;margin-top:8px;">Cancel</button>
+      </div>
+    </div>
+  </div>
+  
   <div id="addModal" class="modal-overlay">
     <div class="modal-box">
       <div class="modal-title">Add Item</div>
@@ -673,6 +697,8 @@
     let currentBranchName = '';
     let allItems = {};
     let pendingImportData = null;
+    let pendingImportScope = null; // 'current' or 'all'
+    let duplicateStats = null; // { duplicates: [], newItems: [] }
     let pendingAddData = null;
     let pendingDeleteCategory = null;
     
@@ -1174,6 +1200,101 @@
       
       closeModal('import');
       
+      // Save scope for later use
+      pendingImportScope = scope;
+      
+      // Check for duplicates
+      await checkDuplicates(scope);
+    }
+    
+    async function checkDuplicates(scope) {
+      try {
+        // Get target branch(es) to check against
+        let branchesToCheck = [];
+        if (scope === 'current') {
+          const targetBranch = currentBranch === 'all_branches' 
+            ? document.getElementById('adminBranchSelect').value 
+            : currentBranch;
+          branchesToCheck = [targetBranch];
+        } else {
+          branchesToCheck = Object.keys(branches);
+        }
+        
+        // Load existing items from target branch(es)
+        let existingItems = [];
+        for (const branchId of branchesToCheck) {
+          const itemsSnap = await window.dbGet(window.dbRef(window.db, `branches/${branchId}/items`));
+          const items = itemsSnap.val() || {};
+          existingItems = existingItems.concat(
+            Object.entries(items).map(([id, item]) => ({
+              id,
+              branchId,
+              name: item.name.toLowerCase().trim(),
+              category: item.category.toLowerCase().trim()
+            }))
+          );
+        }
+        
+        // Check each import item for duplicates
+        const duplicates = [];
+        const newItems = [];
+        
+        pendingImportData.forEach(row => {
+          const name = (row.Product || row.product || row.Item || row.item || '').trim();
+          const cat = (row.Category || row.category || row['Category '] || '').trim();
+          
+          if (!name || !cat) return;
+          
+          const nameLower = name.toLowerCase();
+          const catLower = cat.toLowerCase();
+          
+          const isDuplicate = existingItems.some(item => 
+            item.name === nameLower && item.category === catLower
+          );
+          
+          if (isDuplicate) {
+            duplicates.push({ name, category: cat });
+          } else {
+            newItems.push({ name, category: cat });
+          }
+        });
+        
+        // Store stats
+        duplicateStats = { duplicates, newItems };
+        
+        console.log('Duplicate check:', { duplicates: duplicates.length, new: newItems.length });
+        
+        // Show appropriate modal
+        if (duplicates.length === 0) {
+          // No duplicates - proceed directly
+          executeImport('keep');
+        } else {
+          // Show duplicate options modal
+          const total = duplicates.length + newItems.length;
+          document.getElementById('duplicateModalText').innerHTML = `
+            Found <strong>${duplicates.length} duplicate${duplicates.length !== 1 ? 's' : ''}</strong> 
+            and <strong>${newItems.length} new item${newItems.length !== 1 ? 's' : ''}</strong> 
+            in your import file.<br><br>What should I do?
+          `;
+          document.getElementById('skipText').textContent = `Only add ${newItems.length} new item${newItems.length !== 1 ? 's' : ''}`;
+          document.getElementById('replaceText').textContent = `Update ${duplicates.length} + add ${newItems.length} new`;
+          document.getElementById('duplicateModal').classList.add('show');
+        }
+      } catch (error) {
+        console.error('Duplicate check error:', error);
+        alert('Error checking duplicates: ' + error.message);
+      }
+    }
+    
+    function handleDuplicates(mode) {
+      console.log('handleDuplicates mode:', mode);
+      closeModal('duplicate');
+      executeImport(mode);
+    }
+    
+    async function executeImport(mode) {
+      console.log('executeImport mode:', mode, 'scope:', pendingImportScope);
+      
       const btn = document.getElementById('importBtn');
       const progressDiv = document.getElementById('importProgress');
       const progressText = document.getElementById('importProgressText');
@@ -1191,6 +1312,21 @@
       progressBar.style.width = '0%';
       
       try {
+        const scope = pendingImportScope;
+        
+        // Determine which items to import based on mode
+        let itemsToImport = [];
+        if (mode === 'skip') {
+          itemsToImport = duplicateStats.newItems;
+        } else if (mode === 'replace') {
+          itemsToImport = [...duplicateStats.duplicates, ...duplicateStats.newItems];
+        } else { // 'keep'
+          itemsToImport = pendingImportData.map(row => ({
+            name: (row.Product || row.product || row.Item || row.item || '').trim(),
+            category: (row.Category || row.category || row['Category '] || '').trim()
+          })).filter(item => item.name && item.category);
+        }
+        
         if (scope === 'current') {
           // If logged in with "all_branches", use the currently selected branch from admin dropdown
           const targetBranch = currentBranch === 'all_branches' 
@@ -1200,20 +1336,31 @@
           
           console.log('Importing to branch:', targetBranch, targetBranchName);
           
+          // If replace mode, delete duplicates first
+          if (mode === 'replace') {
+            const itemsSnap = await window.dbGet(window.dbRef(window.db, `branches/${targetBranch}/items`));
+            const existingItems = itemsSnap.val() || {};
+            
+            for (const [id, item] of Object.entries(existingItems)) {
+              const isDuplicate = duplicateStats.duplicates.some(dup =>
+                dup.name.toLowerCase() === item.name.toLowerCase() &&
+                dup.category.toLowerCase() === item.category.toLowerCase()
+              );
+              if (isDuplicate) {
+                await window.dbRemove(window.dbRef(window.db, `branches/${targetBranch}/items/${id}`));
+              }
+            }
+          }
+          
           // Import to current/selected branch only
           let count = 0;
-          const total = pendingImportData.length;
+          const total = itemsToImport.length;
           
-          for (const row of pendingImportData) {
-            const name = (row.Product || row.product || row.Item || row.item || '').trim();
-            const cat = (row.Category || row.category || row['Category '] || '').trim();
-            
-            if (!name || !cat) continue;
-            
+          for (const item of itemsToImport) {
             const id = 'item_' + Date.now() + '_' + count;
             await window.dbSet(window.dbRef(window.db, `branches/${targetBranch}/items/${id}`), {
-              name,
-              category: cat,
+              name: item.name,
+              category: item.category,
               available: true,
               unavailableSince: null
             });
@@ -1223,53 +1370,59 @@
             progressBar.style.width = percent + '%';
             progressText.textContent = `Importing to ${targetBranchName}... ${count} of ${total}`;
             
-            console.log(`Imported ${count}/${total}: ${name}`);
+            console.log(`Imported ${count}/${total}: ${item.name}`);
           }
           progressText.textContent = `✓ Imported ${count} items to ${targetBranchName}`;
           progressBar.style.width = '100%';
         } else {
-        // Import to all branches
-        console.log('Importing to all branches');
-        let totalCount = 0;
-        const itemsPerBranch = pendingImportData.filter(row => {
-          const name = (row.Product || row.product || row.Item || row.item || '').trim();
-          const cat = (row.Category || row.category || row['Category '] || '').trim();
-          return name && cat;
-        }).length;
-        const totalItems = itemsPerBranch * Object.keys(branches).length;
-        
-        console.log(`Will import ${itemsPerBranch} items to ${Object.keys(branches).length} branches = ${totalItems} total`);
-        
-        for (const branchId of Object.keys(branches)) {
-          let count = 0;
-          for (const row of pendingImportData) {
-            const name = (row.Product || row.product || row.Item || row.item || '').trim();
-            const cat = (row.Category || row.category || row['Category '] || '').trim();
+          // Import to all branches
+          console.log('Importing to all branches');
+          let totalCount = 0;
+          const totalItems = itemsToImport.length * Object.keys(branches).length;
+          
+          console.log(`Will import ${itemsToImport.length} items to ${Object.keys(branches).length} branches = ${totalItems} total`);
+          
+          for (const branchId of Object.keys(branches)) {
+            // If replace mode, delete duplicates from this branch first
+            if (mode === 'replace') {
+              const itemsSnap = await window.dbGet(window.dbRef(window.db, `branches/${branchId}/items`));
+              const existingItems = itemsSnap.val() || {};
+              
+              for (const [id, item] of Object.entries(existingItems)) {
+                const isDuplicate = duplicateStats.duplicates.some(dup =>
+                  dup.name.toLowerCase() === item.name.toLowerCase() &&
+                  dup.category.toLowerCase() === item.category.toLowerCase()
+                );
+                if (isDuplicate) {
+                  await window.dbRemove(window.dbRef(window.db, `branches/${branchId}/items/${id}`));
+                }
+              }
+            }
             
-            if (!name || !cat) continue;
-            
-            const id = 'item_' + Date.now() + '_' + branchId + '_' + count;
-            await window.dbSet(window.dbRef(window.db, `branches/${branchId}/items/${id}`), {
-              name,
-              category: cat,
-              available: true,
-              unavailableSince: null
-            });
-            count++;
-            totalCount++;
-            
-            const percent = Math.round((totalCount / totalItems) * 100);
-            progressBar.style.width = percent + '%';
-            progressText.textContent = `Importing to all branches... ${totalCount} of ${totalItems}`;
-            
-            if (totalCount % 10 === 0) {
-              console.log(`Progress: ${totalCount}/${totalItems}`);
+            let count = 0;
+            for (const item of itemsToImport) {
+              const id = 'item_' + Date.now() + '_' + branchId + '_' + count;
+              await window.dbSet(window.dbRef(window.db, `branches/${branchId}/items/${id}`), {
+                name: item.name,
+                category: item.category,
+                available: true,
+                unavailableSince: null
+              });
+              count++;
+              totalCount++;
+              
+              const percent = Math.round((totalCount / totalItems) * 100);
+              progressBar.style.width = percent + '%';
+              progressText.textContent = `Importing to all branches... ${totalCount} of ${totalItems}`;
+              
+              if (totalCount % 10 === 0) {
+                console.log(`Progress: ${totalCount}/${totalItems}`);
+              }
             }
           }
+          progressText.textContent = `✓ Imported ${itemsToImport.length} items to all branches`;
+          progressBar.style.width = '100%';
         }
-        progressText.textContent = `✓ Imported ${itemsPerBranch} items to all branches`;
-        progressBar.style.width = '100%';
-      }
       
       console.log('Import complete, showing success message');
       
@@ -1281,6 +1434,8 @@
         document.getElementById('importPreview').innerHTML = '';
         excelData = [];
         pendingImportData = null;
+        pendingImportScope = null;
+        duplicateStats = null;
         progressBar.style.width = '0%';
         alert('Import complete!');
       }, 2000);
@@ -1289,6 +1444,8 @@
       alert('Import failed: ' + error.message + '. Check console for details.');
       progressDiv.style.display = 'none';
       btn.style.display = 'flex';
+      pendingImportScope = null;
+      duplicateStats = null;
     }
   }
     
