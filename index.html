@@ -1129,6 +1129,14 @@
     
     async function confirmImport(scope) {
       console.log('confirmImport called with scope:', scope);
+      console.log('pendingImportData:', pendingImportData);
+      
+      if (!pendingImportData || !pendingImportData.length) {
+        alert('Error: No import data found. Please try uploading the file again.');
+        closeModal('import');
+        return;
+      }
+      
       closeModal('import');
       
       const btn = document.getElementById('importBtn');
@@ -1251,7 +1259,8 @@
     
     function closeModal(type) {
       document.getElementById(type + 'Modal').classList.remove('show');
-      if (type === 'import') pendingImportData = null;
+      // Don't clear pendingImportData here - confirmImport needs it
+      // It will be cleared after import completes
       if (type === 'add') pendingAddData = null;
       if (type === 'deleteCat') pendingDeleteCategory = null;
     }
