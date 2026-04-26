@@ -799,8 +799,13 @@
     async function checkPin() {
       const pin = ['p1','p2','p3','p4'].map(id => document.getElementById(id).value).join('');
       
-      // Load config for the selected branch
-      const configSnap = await window.dbGet(window.dbRef(window.db, `config/${currentBranch}`));
+      // For "All Branches" mode, use first branch's config for admin PIN check
+      const configBranch = currentBranch === 'all_branches' 
+        ? Object.keys(branches)[0]  // Use first branch's admin PIN
+        : currentBranch;
+      
+      // Load config for the selected branch (or first branch if "All Branches")
+      const configSnap = await window.dbGet(window.dbRef(window.db, `config/${configBranch}`));
       const config = configSnap.val();
       
       if (!config) {
