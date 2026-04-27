@@ -437,6 +437,10 @@
           <span class="role-icon">👨‍🍳</span>
           <div class="role-name">Kitchen</div>
         </div>
+        <div class="role-card" onclick="selectRole('beverage')">
+          <span class="role-icon">☕</span>
+          <div class="role-name">Beverage</div>
+        </div>
         <div class="role-card" onclick="selectRole('pos')">
           <span class="role-icon">💳</span>
           <div class="role-name">POS</div>
@@ -492,6 +496,27 @@
       </div>
       
       <div id="kitchenList"></div>
+    </div>
+    
+    <!-- BEVERAGE SCREEN -->
+    <div id="beverageScreen" class="screen">
+      <div class="hdr">
+        <div class="hdr-eyebrow">Beverage Station</div>
+        <div class="hdr-name">Item Availability</div>
+        <div class="hdr-rule"></div>
+      </div>
+      
+      <div class="top-bar">
+        <div class="top-title" id="beverageStatus">Loading...</div>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </div>
+      
+      <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="search-input" placeholder="Search items..." id="beverageSearch" oninput="filterBeverage()">
+      </div>
+      
+      <div id="beverageList"></div>
     </div>
     
     <!-- POS SCREEN -->
@@ -676,8 +701,9 @@
         Object.keys(branches).forEach(branchId => {
           defaultConfig[branchId] = {
             kitchenPin: '1234',
-            posPin: '5678',
-            adminPin: '9999'
+            beveragePin: '5678',
+            posPin: '9999',
+            adminPin: '0000'
           };
         });
         set(ref(db, 'config'), defaultConfig);
@@ -710,6 +736,47 @@
       'somson_ludhiana': 'Somson'
     };
     
+    // Station-to-category mapping
+    const stationCategories = {
+      kitchen: [
+        'Breakfast Platter',
+        'Eggs',
+        'Salad',
+        'Pizza',
+        'Garlic Bread',
+        'Sandwich',
+        'Wraps',
+        'Hot Dog',
+        'Pasta',
+        'Rice Bowl',
+        'Noodles',
+        'Kulcha',
+        'Bruschetta',
+        'Steak',
+        'Nachos',
+        'Fries'
+      ],
+      beverage: [
+        'Hot Coffee',
+        'Coffee Shots',
+        'Black Coffee',
+        'Iced Coffee',
+        'Japnese Tea',
+        'Coolers',
+        'Smoothies',
+        'Hot Milk',
+        'Milk Shakes',
+        'Youghut',
+        'Syrup Addon',
+        'Add-on'
+      ]
+    };
+    
+    // Helper function to check if category belongs to a station
+    function belongsToStation(category, station) {
+      return stationCategories[station]?.includes(category) || false;
+    }
+    
     // Role selection - adds "All Branches" option for Admin
     function selectRole(role) {
       selectedRole = role;
@@ -717,8 +784,9 @@
       // Highlight selected role card
       document.querySelectorAll('.role-card').forEach((card, index) => {
         if ((role === 'kitchen' && index === 0) || 
-            (role === 'pos' && index === 1) || 
-            (role === 'admin' && index === 2)) {
+            (role === 'beverage' && index === 1) ||
+            (role === 'pos' && index === 2) || 
+            (role === 'admin' && index === 3)) {
           card.style.opacity = '1';
           card.style.transform = 'scale(1.02)';
         } else {
@@ -847,6 +915,7 @@
       
       let valid = false;
       if (selectedRole === 'kitchen' && pin === String(config.kitchenPin)) valid = true;
+      if (selectedRole === 'beverage' && pin === String(config.beveragePin)) valid = true;
       // Handle both posPin (new) and baristaPin (legacy), convert to string for comparison
       if (selectedRole === 'pos' && (pin === String(config.posPin) || pin === String(config.baristaPin))) valid = true;
       if (selectedRole === 'admin' && pin === String(config.adminPin)) valid = true;
@@ -866,6 +935,7 @@
         document.getElementById(selectedRole + 'Screen').classList.add('active');
         
         if (selectedRole === 'kitchen') loadKitchen();
+        if (selectedRole === 'beverage') loadBeverage();
         if (selectedRole === 'pos') loadPos();
         if (selectedRole === 'admin') loadAdmin();
       } else {
@@ -888,6 +958,7 @@
       localStorage.removeItem('hb_avail_session');
       
       document.getElementById('kitchenScreen').classList.remove('active');
+      document.getElementById('beverageScreen').classList.remove('active');
       document.getElementById('posScreen').classList.remove('active');
       document.getElementById('adminScreen').classList.remove('active');
       document.getElementById('loginScreen').classList.add('active');
@@ -913,12 +984,14 @@
       const grouped = {};
       
       Object.entries(allItems).forEach(([id, item]) => {
+        // Filter: only show kitchen categories
+        if (!belongsToStation(item.category, 'kitchen')) return;
         if (search && !item.name.toLowerCase().includes(search)) return;
         if (!grouped[item.category]) grouped[item.category] = [];
         grouped[item.category].push({id, ...item});
       });
       
-      const naCount = Object.values(allItems).filter(i => !i.available).length;
+      const naCount = Object.values(allItems).filter(i => !i.available && belongsToStation(i.category, 'kitchen')).length;
       document.getElementById('kitchenStatus').textContent = `${naCount} item${naCount !== 1 ? 's' : ''} currently N/A`;
       
       let html = '';
@@ -992,6 +1065,69 @@
       }
     }
     
+    // Beverage view
+    async function loadBeverage() {
+      const itemsSnap = await window.dbGet(window.dbRef(window.db, `branches/${currentBranch}/items`));
+      allItems = itemsSnap.val() || {};
+      renderBeverage();
+      
+      // Real-time updates
+      window.dbOnValue(window.dbRef(window.db, `branches/${currentBranch}/items`), snap => {
+        allItems = snap.val() || {};
+        renderBeverage();
+      });
+    }
+    
+    function renderBeverage() {
+      const search = document.getElementById('beverageSearch').value.toLowerCase();
+      const grouped = {};
+      
+      Object.entries(allItems).forEach(([id, item]) => {
+        // Filter: only show beverage categories
+        if (!belongsToStation(item.category, 'beverage')) return;
+        if (search && !item.name.toLowerCase().includes(search)) return;
+        if (!grouped[item.category]) grouped[item.category] = [];
+        grouped[item.category].push({id, ...item});
+      });
+      
+      const naCount = Object.values(allItems).filter(i => !i.available && belongsToStation(i.category, 'beverage')).length;
+      document.getElementById('beverageStatus').textContent = `${naCount} item${naCount !== 1 ? 's' : ''} currently N/A`;
+      
+      let html = '';
+      Object.entries(grouped).sort().forEach(([cat, items]) => {
+        const naInCat = items.filter(i => !i.available).length;
+        const allAvailable = naInCat === 0;
+        html += `
+          <div class="glass-card">
+            <div class="cat-head">
+              <span class="cat-icon">◈</span>
+              <span class="cat-name">${cat}</span>
+              <span class="cat-count">${naInCat} / ${items.length}</span>
+              <button class="cat-toggle-btn" onclick="toggleCategory('${cat}', ${!allAvailable})">
+                ${allAvailable ? 'Mark N/A' : 'Mark Available'}
+              </button>
+            </div>
+            <div class="item-list">
+              ${items.sort((a,b) => a.name.localeCompare(b.name)).map(item => `
+                <div class="item-row ${item.available ? '' : 'na'}">
+                  <div class="item-name">${item.name}</div>
+                  <div class="toggle ${item.available ? 'on' : ''}" onclick="toggleItem('${item.id}')">
+                    <div class="toggle-knob"></div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      });
+      
+      document.getElementById('beverageList').innerHTML = html || '<div class="empty-state"><span class="empty-icon">📦</span><div class="empty-title">No Items</div><div class="empty-msg">Add items from Admin panel</div></div>';
+    }
+    
+    function filterBeverage() {
+      renderBeverage();
+    }
+    
     // POS view
     async function loadPos() {
       const itemsSnap = await window.dbGet(window.dbRef(window.db, `branches/${currentBranch}/items`));
@@ -1030,10 +1166,16 @@
       let html = '';
       Object.entries(grouped).sort().forEach(([cat, items]) => {
         items.sort((a,b) => a.name.localeCompare(b.name)).forEach(item => {
+          // Determine which station this item belongs to
+          const station = belongsToStation(cat, 'kitchen') ? 'Kitchen' : 
+                         belongsToStation(cat, 'beverage') ? 'Beverage' : 
+                         'Unknown';
+          
           html += `
             <div class="na-card">
               <div class="na-cat">${cat}</div>
               <div class="na-name">${item.name}</div>
+              <div class="na-station" style="font-size:.7rem;color:var(--text3);margin-top:4px;">${station}</div>
             </div>
           `;
         });
@@ -1855,6 +1997,7 @@
             document.getElementById(session.role + 'Screen').classList.add('active');
             
             if (session.role === 'kitchen') loadKitchen();
+            if (session.role === 'beverage') loadBeverage();
             if (session.role === 'pos') loadPos();
             if (session.role === 'admin') loadAdmin();
           } else {
